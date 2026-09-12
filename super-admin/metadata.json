@@ -1,0 +1,6 @@
+{
+  "name": "Super Admin Portal - Restaurant SaaS",
+  "description": "Enterprise Super Admin Command Hub for multi-tenant B2B SaaS restaurant management, Supabase user registration, Pakistan restaurant exact Google Maps geocoding and fleet tracking, financial ledger, and system telemetry.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
