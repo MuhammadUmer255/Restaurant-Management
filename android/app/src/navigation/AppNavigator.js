@@ -1,19 +1,16 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
-
 // Existing Screens
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import OrderScreen from '../screens/OrderScreen'; // Updated import name if file is OrderScreen.js
 import TablesScreen from '../screens/TablesScreen';
-
 // Admin CRUD Screens
 import EmployeeCrudScreen from '../screens/EmployeeCrudScreen';
 import TableCrudScreen from '../screens/TableCrudScreen';
 import MenuCrudScreen from '../screens/MenuCrudScreen';
-
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
