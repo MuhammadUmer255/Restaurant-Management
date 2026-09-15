@@ -2,10 +2,9 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import fs from 'fs';
 import path from 'path';
-import {defineConfig, Plugin} from 'vite';
+import { defineConfig } from 'vite';
 
-// LINT.IfChange(aistudio_media_plugin)
-function aistudioMediaPlugin(): Plugin {
+function aistudioMediaPlugin() {
   return {
     name: 'vite-plugin-aistudio-media',
     configureServer(server) {
@@ -15,12 +14,7 @@ function aistudioMediaPlugin(): Plugin {
           try {
             const decodedPath = decodeURIComponent(rawPath);
             const relativePath = decodedPath.replace(/^\//, '');
-            const aistudioDir = path.resolve(
-              __dirname,
-              'public',
-              'assets',
-              'aistudio',
-            );
+            const aistudioDir = path.resolve(__dirname, 'public', 'assets', 'aistudio');
             const filePath = path.resolve(__dirname, 'public', relativePath);
             if (
               filePath.startsWith(aistudioDir + path.sep) &&
@@ -28,7 +22,7 @@ function aistudioMediaPlugin(): Plugin {
               fs.statSync(filePath).isFile()
             ) {
               const ext = path.extname(filePath).toLowerCase();
-              const mimeMap: Record<string, string> = {
+              const mimeMap = {
                 '.jpg': 'image/jpeg',
                 '.jpeg': 'image/jpeg',
                 '.png': 'image/png',
@@ -45,15 +39,12 @@ function aistudioMediaPlugin(): Plugin {
                 '.ogg': 'audio/ogg',
                 '.pdf': 'application/pdf',
               };
-              res.setHeader(
-                'Content-Type',
-                mimeMap[ext] || 'application/octet-stream',
-              );
+              res.setHeader('Content-Type', mimeMap[ext] || 'application/octet-stream');
               res.setHeader('Cache-Control', 'no-cache');
               fs.createReadStream(filePath).pipe(res);
               return;
             }
-          } catch {
+          } catch (e) {
             // Fall through if URI decoding or file access fails
           }
         }
@@ -62,7 +53,6 @@ function aistudioMediaPlugin(): Plugin {
     },
   };
 }
-// LINT.ThenChange(//depot/google3/java/com/google/alkali/boq/makersuite/applet_dev_service/templates/initializers/react_theme/vite.config.ts:aistudio_media_plugin)
 
 export default defineConfig(() => {
   return {
@@ -76,18 +66,17 @@ export default defineConfig(() => {
       host: '0.0.0.0',
       port: 3000,
       strictPort: true,
-      allowedHosts: true as const,
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modify—file watching is disabled to prevent flickering during agent edits.
+      allowedHosts: true,
       hmr: process.env.DISABLE_HMR !== 'true',
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      watch: process.env.DISABLE_HMR === 'true' ? null : {
+        ignored: ['**/.vs/**'],
+      },
     },
     preview: {
       host: '0.0.0.0',
       port: 3000,
       strictPort: true,
-      allowedHosts: true as const,
+      allowedHosts: true,
     },
   };
 });
