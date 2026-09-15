@@ -6,7 +6,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import DashboardScreen from '../screens/DashboardScreen';
-import OrdersScreen from '../screens/OrdersScreen';
+import OrderScreen from '../screens/OrderScreen'; // Updated import name if file is OrderScreen.js
 import TablesScreen from '../screens/TablesScreen';
 
 // Admin CRUD Screens
@@ -20,17 +20,19 @@ const AppNavigator = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="DashboardScreen"
+        initialRouteName="LoginScreen" // Default to Login for standard auth flow
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#0B101D' },
+          contentStyle: { backgroundColor: '#070E20' }, // Dark theme container background
         }}
       >
-        {/* Auth & Operational Flow */}
+        {/* Auth Flow */}
         <Stack.Screen name="LoginScreen" component={LoginScreen} />
         <Stack.Screen name="RegisterScreen" component={RegisterScreen} />
+
+        {/* Operational Flow */}
         <Stack.Screen name="DashboardScreen" component={DashboardScreen} />
-        <Stack.Screen name="OrdersScreen" component={OrdersScreen} />
+        <Stack.Screen name="OrderScreen" component={OrderScreen} />
         <Stack.Screen name="TablesScreen" component={TablesScreen} />
 
         {/* Admin Management CRUD Flow */}

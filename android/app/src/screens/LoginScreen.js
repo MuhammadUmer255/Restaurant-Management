@@ -10,9 +10,8 @@ import {
   StatusBar,
 } from 'react-native';
 
-// ---------- COLORS (design se match) ----------
 const COLORS = {
-  bg: '#0d1220',
+  bg: '#070E20',
   card: '#131a2b',
   cardBorder: '#26314a',
   orange: '#ff7a1a',
@@ -28,19 +27,34 @@ export default function LoginScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('email'); // 'email' | 'pin'
   const [email, setEmail] = useState('laurent@ateliergourmet.com');
   const [password, setPassword] = useState('');
+  const [pin, setPin] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [keepBound, setKeepBound] = useState(true);
 
   const handleSignIn = () => {
-    // TODO: apna auth logic yahan call karein
-    console.log('Sign in ->', { email, password, keepBound });
+    // Navigate to Main Operational Dashboard
+    navigation.navigate('DashboardScreen');
+  };
+
+  const handlePinKeyPress = (val) => {
+    if (val === 'DEL') {
+      setPin((prev) => prev.slice(0, -1));
+    } else if (pin.length < 4) {
+      const newPin = pin + val;
+      setPin(newPin);
+      if (newPin.length === 4) {
+        // Auto sign-in when 4 digits are entered
+        navigation.navigate('DashboardScreen');
+      }
+    }
   };
 
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Top status row */}
+        
+        {/* Top Status Row */}
         <View style={styles.topRow}>
           <View style={styles.statusPill}>
             <View style={styles.dotGreen} />
@@ -72,9 +86,9 @@ export default function LoginScreen({ navigation }) {
           Sign in to manage your restaurant floor, kitchen{'\n'}tickets & staff dispatch.
         </Text>
 
-        {/* Card */}
+        {/* Main Card */}
         <View style={styles.card}>
-          {/* Tabs */}
+          {/* Auth Method Tabs */}
           <View style={styles.tabsRow}>
             <TouchableOpacity
               style={[styles.tabBtn, activeTab === 'email' && styles.tabBtnActive]}
@@ -96,9 +110,9 @@ export default function LoginScreen({ navigation }) {
 
           {activeTab === 'email' ? (
             <>
-              {/* Email field */}
+              {/* Email Input */}
               <View style={styles.labelRow}>
-                <Text style={styles.labelText}>@  Work Email or Staff ID</Text>
+                <Text style={styles.labelText}>@ Work Email or Staff ID</Text>
                 <Text style={styles.labelHint}>Floor / Admin</Text>
               </View>
               <TextInput
@@ -111,8 +125,8 @@ export default function LoginScreen({ navigation }) {
                 keyboardType="email-address"
               />
 
-              {/* Password field */}
-              <Text style={[styles.labelText, { marginTop: 18 }]}>🔒  Terminal Password</Text>
+              {/* Password Input */}
+              <Text style={[styles.labelText, { marginTop: 18 }]}>🔒 Terminal Password</Text>
               <View style={styles.passwordWrap}>
                 <TextInput
                   style={styles.passwordInput}
@@ -127,7 +141,7 @@ export default function LoginScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
 
-              {/* Checkbox + Forgot */}
+              {/* Checkbox + Forgot Password */}
               <View style={styles.optionsRow}>
                 <TouchableOpacity
                   style={styles.checkboxRow}
@@ -143,27 +157,59 @@ export default function LoginScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
 
-              {/* Sign in button */}
+              {/* Sign In Button */}
               <TouchableOpacity style={styles.signInBtn} onPress={handleSignIn}>
                 <Text style={styles.signInText}>Sign In to Terminal  →</Text>
               </TouchableOpacity>
             </>
           ) : (
-            <View style={styles.pinPlaceholder}>
-              <Text style={styles.pinPlaceholderText}>
-                Staff PIN Pad yahan render hoga (numeric keypad component).
-              </Text>
+            /* Functional Interactive PIN Pad */
+            <View style={styles.pinContainer}>
+              <Text style={styles.pinInstruction}>Enter 4-Digit Staff Access PIN</Text>
+              
+              {/* PIN Display Indicators */}
+              <View style={styles.pinDotsRow}>
+                {[0, 1, 2, 3].map((index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.pinDot,
+                      pin.length > index && styles.pinDotFilled,
+                    ]}
+                  />
+                ))}
+              </View>
+
+              {/* Keypad Grid */}
+              <View style={styles.keypadGrid}>
+                {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'CLR', '0', 'DEL'].map((key) => (
+                  <TouchableOpacity
+                    key={key}
+                    style={styles.keypadBtn}
+                    onPress={() => {
+                      if (key === 'CLR') setPin('');
+                      else handlePinKeyPress(key);
+                    }}
+                  >
+                    <Text style={styles.keypadBtnText}>{key}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           )}
 
-          {/* Rush hour fast access */}
+          {/* Rush Hour Access Links */}
           <Text style={styles.rushText}>RUSH HOUR FAST ACCESS</Text>
           <View style={styles.fastAccessRow}>
-            <TouchableOpacity style={styles.fastBtn}>
+            <TouchableOpacity 
+              style={[styles.fastBtn, { marginRight: 6 }]} 
+              onPress={() => setActiveTab('pin')}
+            >
               <Text style={styles.fastBtnIcon}>🧾</Text>
               <Text style={styles.fastBtnText}>4-Digit PIN</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.fastBtn}>
+            
+            <TouchableOpacity style={[styles.fastBtn, { marginLeft: 6 }]}>
               <Text style={[styles.fastBtnIcon, { color: COLORS.green }]}>📶</Text>
               <Text style={styles.fastBtnText}>Tap NFC Card</Text>
             </TouchableOpacity>
@@ -174,13 +220,19 @@ export default function LoginScreen({ navigation }) {
         <View style={styles.footer}>
           <Text style={styles.footerText}>
             New location or franchise?{' '}
-            <Text style={styles.footerLink}>Create Workspace →</Text>
+            <Text 
+              style={styles.footerLink}
+              onPress={() => navigation.navigate('RegisterScreen')}
+            >
+              Create Workspace →
+            </Text>
           </Text>
           <Text style={styles.footerSmall}>
             🛡 256-Bit Restaurant Bank Grade POS • PCI-DSS Level 1
           </Text>
           <Text style={styles.footerSmall}>HautePOS OS v4.8.2 • Node ID #409-TX</Text>
         </View>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -215,30 +267,30 @@ const styles = StyleSheet.create({
   },
   terminalPillText: { color: COLORS.textSecondary, fontSize: 12, fontFamily: 'monospace' },
 
-  logoWrap: { alignItems: 'center', marginTop: 40 },
+  logoWrap: { alignItems: 'center', marginTop: 30 },
   logoBox: {
-    width: 84, height: 84, borderRadius: 20,
+    width: 80, height: 80, borderRadius: 20,
     backgroundColor: COLORS.card,
     borderWidth: 1, borderColor: COLORS.orange,
     alignItems: 'center', justifyContent: 'center',
   },
-  logoIcon: { fontSize: 34 },
+  logoIcon: { fontSize: 32 },
   logoDot: {
     position: 'absolute', top: 10, right: 12,
     width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.green,
   },
 
-  brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 20, gap: 10 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18 },
   brandText: { color: COLORS.textPrimary, fontSize: 26, fontWeight: '700' },
   enterprisePill: {
     backgroundColor: COLORS.orangeSoft,
     borderWidth: 1, borderColor: COLORS.orange,
-    borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 8,
+    borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 10,
   },
   enterprisePillText: { color: COLORS.orange, fontSize: 10, fontWeight: '700' },
 
-  title: { color: COLORS.textPrimary, fontSize: 24, fontWeight: '700', textAlign: 'center', marginTop: 16 },
-  subtitle: { color: COLORS.textSecondary, textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  title: { color: COLORS.textPrimary, fontSize: 24, fontWeight: '700', textAlign: 'center', marginTop: 14 },
+  subtitle: { color: COLORS.textSecondary, textAlign: 'center', marginTop: 6, lineHeight: 20, fontSize: 13 },
 
   card: {
     backgroundColor: COLORS.card,
@@ -246,17 +298,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
     padding: 18,
-    marginTop: 28,
+    marginTop: 24,
   },
 
   tabsRow: { flexDirection: 'row', backgroundColor: COLORS.inputBg, borderRadius: 12, padding: 4 },
   tabBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
-  tabBtnActive: { backgroundColor: 'transparent', borderWidth: 1, borderColor: COLORS.orange },
-  tabText: { color: COLORS.textSecondary, fontWeight: '600' },
+  tabBtnActive: { backgroundColor: COLORS.card, borderWidth: 1, borderColor: COLORS.orange },
+  tabText: { color: COLORS.textSecondary, fontWeight: '600', fontSize: 13 },
   tabTextActive: { color: COLORS.orange },
 
   labelRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, marginBottom: 8 },
-  labelText: { color: COLORS.textPrimary, fontWeight: '600' },
+  labelText: { color: COLORS.textPrimary, fontWeight: '600', fontSize: 13 },
   labelHint: { color: COLORS.textSecondary, fontSize: 11, fontFamily: 'monospace' },
 
   input: {
@@ -265,7 +317,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
     paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingVertical: 12,
     color: COLORS.textPrimary,
   },
 
@@ -279,10 +331,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     marginTop: 8,
   },
-  passwordInput: { flex: 1, color: COLORS.textPrimary, paddingVertical: 14 },
+  passwordInput: { flex: 1, color: COLORS.textPrimary, paddingVertical: 12 },
   eyeIcon: { fontSize: 18 },
 
-  optionsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 18 },
+  optionsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 },
   checkboxRow: { flexDirection: 'row', alignItems: 'center' },
   checkbox: {
     width: 20, height: 20, borderRadius: 6,
@@ -291,30 +343,56 @@ const styles = StyleSheet.create({
   },
   checkboxChecked: { backgroundColor: COLORS.orange, borderColor: COLORS.orange },
   checkmark: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  checkboxLabel: { color: COLORS.textPrimary },
-  forgotText: { color: COLORS.orange, fontWeight: '600' },
+  checkboxLabel: { color: COLORS.textPrimary, fontSize: 13 },
+  forgotText: { color: COLORS.orange, fontWeight: '600', fontSize: 13 },
 
   signInBtn: {
     backgroundColor: COLORS.orange,
     borderRadius: 14,
-    paddingVertical: 16,
+    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 22,
+    marginTop: 20,
   },
-  signInText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  signInText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
-  pinPlaceholder: { paddingVertical: 40, alignItems: 'center' },
-  pinPlaceholderText: { color: COLORS.textSecondary, textAlign: 'center' },
+  // Interactive PIN Pad Styling
+  pinContainer: { alignItems: 'center', paddingVertical: 15 },
+  pinInstruction: { color: COLORS.textSecondary, fontSize: 13, marginBottom: 15 },
+  pinDotsRow: { flexDirection: 'row', marginBottom: 20 },
+  pinDot: {
+    width: 14, height: 14, borderRadius: 7,
+    borderWidth: 1.5, borderColor: COLORS.cardBorder,
+    marginHorizontal: 8,
+  },
+  pinDotFilled: { backgroundColor: COLORS.orange, borderColor: COLORS.orange },
+  keypadGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  keypadBtn: {
+    width: '28%',
+    aspectRatio: 1.6,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '2%',
+  },
+  keypadBtnText: { color: COLORS.textPrimary, fontSize: 18, fontWeight: '700' },
 
   rushText: {
     color: COLORS.textSecondary,
     fontSize: 11,
     letterSpacing: 1,
     textAlign: 'center',
-    marginTop: 26,
+    marginTop: 24,
     marginBottom: 12,
   },
-  fastAccessRow: { flexDirection: 'row', gap: 12 },
+  fastAccessRow: { flexDirection: 'row', justifyContent: 'space-between' },
   fastBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -324,13 +402,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
-    paddingVertical: 14,
+    paddingVertical: 12,
   },
   fastBtnIcon: { color: COLORS.orange, marginRight: 8, fontSize: 16 },
-  fastBtnText: { color: COLORS.textPrimary, fontWeight: '600' },
+  fastBtnText: { color: COLORS.textPrimary, fontWeight: '600', fontSize: 13 },
 
-  footer: { alignItems: 'center', marginTop: 30 },
-  footerText: { color: COLORS.textSecondary },
+  footer: { alignItems: 'center', marginTop: 28 },
+  footerText: { color: COLORS.textSecondary, fontSize: 13 },
   footerLink: { color: COLORS.orange, fontWeight: '700' },
-  footerSmall: { color: '#5a6379', fontSize: 11, marginTop: 10, textAlign: 'center' },
+  footerSmall: { color: '#5a6379', fontSize: 11, marginTop: 8, textAlign: 'center' },
 });
