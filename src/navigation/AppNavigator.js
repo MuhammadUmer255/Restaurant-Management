@@ -20,7 +20,7 @@ const AppNavigator = () => {
         initialRouteName="LoginScreen" // Default to Login for standard auth flow
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#070E20' }, // Dark theme container background
+         contentStyle: { backgroundColor: '#070E20' }, // Dark theme container background
         }}
       >
         {/* Auth Flow */}
