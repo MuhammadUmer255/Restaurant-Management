@@ -5,7 +5,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import DashboardScreen from '../screens/DashboardScreen';
-import OrderScreen from '../screens/OrderScreen'; // Updated import name if file is OrderScreen.js
+import OrdersScreen from '../screens/OrdersScreen';// Updated import name if file is OrderScreen.js
 import TablesScreen from '../screens/TablesScreen';
 // Admin CRUD Screens
 import EmployeeCrudScreen from '../screens/EmployeeCrudScreen';
@@ -29,7 +29,7 @@ const AppNavigator = () => {
 
         {/* Operational Flow */}
         <Stack.Screen name="DashboardScreen" component={DashboardScreen} />
-        <Stack.Screen name="OrderScreen" component={OrderScreen} />
+       <Stack.Screen name="OrdersScreen" component={OrdersScreen} />
         <Stack.Screen name="TablesScreen" component={TablesScreen} />
 
         {/* Admin Management CRUD Flow */}
