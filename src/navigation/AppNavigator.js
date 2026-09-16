@@ -17,7 +17,7 @@ const AppNavigator = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="LoginScreen" // Default to Login for standard auth flow
+        initialRouteName="RegisterScreen" // Default to Dashboard for standard auth flow
         screenOptions={{
           headerShown: false,
          contentStyle: { backgroundColor: '#070E20' }, // Dark theme container background
@@ -25,7 +25,8 @@ const AppNavigator = () => {
       >
         {/* Auth Flow */}
         <Stack.Screen name="LoginScreen" component={LoginScreen} />
-        <Stack.Screen name="RegisterScreen" component={RegisterScreen} />
+       <Stack.Screen name="RegisterScreen" component={RegisterScreen} /> 
+
 
         {/* Operational Flow */}
         <Stack.Screen name="DashboardScreen" component={DashboardScreen} />
