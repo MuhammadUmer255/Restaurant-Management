@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 
 import DashboardHeader from '../components/DashboardHeader';
-import FilterBar from '../components/FilterBar';
+import FilterTab from '../components/FilterTab';
 import MetricCard from '../components/MetricCard';
 import TopSellingList from '../components/TopSellingList';
 import WaiterPerformanceCard from '../components/WaiterPerformanceCard';
@@ -64,7 +64,7 @@ const DashboardScreen = ({ navigation }) => {
         </View>
 
         {/* 2. Filter Bar Component */}
-        <FilterBar timeFilter={timeFilter} setTimeFilter={setTimeFilter} />
+        <FilterTab timeFilter={timeFilter} setTimeFilter={setTimeFilter} />
 
         {/* 3. Metric Cards Component */}
         <View style={styles.metricsRow}>
