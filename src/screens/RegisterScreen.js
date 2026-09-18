@@ -38,7 +38,7 @@ const RegisterScreen = ({ navigation }) => {
       <View style={styles.container}>
         <View style={styles.headerContainer}>
           <Text style={styles.brandTitle}>GourmetOS</Text>
-          <Text style={styles.subtitle}>Create Staff Account</Text>
+          <Text style={styles.subtitle}>Create User/Admin Account</Text>
         </View>
 
         <View style={styles.formContainer}>
@@ -70,7 +70,7 @@ const RegisterScreen = ({ navigation }) => {
             secureTextEntry
           />
 
-          <CustomButton title="Register Staff" onPress={handleRegister} />
+          <CustomButton title="Register User/Admin" onPress={handleRegister} />
 
           <TouchableOpacity
             style={styles.loginLinkContainer}

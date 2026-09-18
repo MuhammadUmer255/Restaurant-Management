@@ -3,253 +3,504 @@ import {
   StyleSheet,
   Text,
   View,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Modal,
   TextInput,
-  Switch,
   Alert,
   TouchableWithoutFeedback,
+  FlatList,
+  StatusBar,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../context/AuthContext';
 
 const INITIAL_MENU = [
-  { id: '1', name: 'Truffle Wagyu Ribeye', price: '68.00', category: 'Main', inStock: true },
-  { id: '2', name: 'Hokkaido Scallops Crudo', price: '39.25', category: 'Starters', inStock: true },
-  { id: '3', name: 'Yuzu Basil Smash', price: '16.00', category: 'Beverages', inStock: false },
+  { id: '1', name: 'Truffle Wagyu Ribeye', category: 'Mains', price: 68.0, available: true },
+  { id: '2', name: 'Yuzu Basil Smash', category: 'Beverages', price: 28.0, available: true },
+  { id: '3', name: 'Hokkaido Scallops Crudo', category: 'Starters', price: 39.25, available: true },
+  { id: '4', name: 'Valrhona Chocolate Soufflé', category: 'Desserts', price: 24.0, available: false },
 ];
 
-const CATEGORIES = ['Starters', 'Main', 'Beverages', 'Desserts'];
+const CATEGORIES = ['All', 'Starters', 'Mains', 'Desserts', 'Beverages'];
 
-const MenuCrudScreen = ({ navigation }) => {
-  const [menu, setMenu] = useState(INITIAL_MENU);
+export default function MenuCrudScreen({ route, navigation }) {
+  // Role Detection (Supports both Route params & AuthContext)
+  const authContext = useAuth ? useAuth() : {};
+  const currentRole = route?.params?.role || authContext?.userRole || 'user';
+  const isAdmin = currentRole === 'admin';
+
+  const [menuItems, setMenuItems] = useState(INITIAL_MENU);
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('All');
   const [editingId, setEditingId] = useState(null);
 
-  // Form State
+  // Form State for Admin CRUD
   const [dishName, setDishName] = useState('');
+  const [category, setCategory] = useState('Mains');
   const [price, setPrice] = useState('');
-  const [category, setCategory] = useState('Main');
-  const [inStock, setInStock] = useState(true);
 
+  // Filtering
+  const filteredMenu = menuItems.filter(
+    (item) => selectedCategory === 'All' || item.category === selectedCategory
+  );
+
+  // Modal Handlers for Admin
   const openAddModal = () => {
     setEditingId(null);
     setDishName('');
+    setCategory('Mains');
     setPrice('');
-    setCategory('Main');
-    setInStock(true);
     setModalVisible(true);
   };
 
   const openEditModal = (item) => {
     setEditingId(item.id);
     setDishName(item.name);
-    setPrice(item.price.toString().replace('$', ''));
     setCategory(item.category);
-    setInStock(item.inStock);
+    setPrice(item.price.toString());
     setModalVisible(true);
   };
 
-  const handleSave = () => {
-    const trimmedName = dishName.trim();
-    const cleanPrice = price.toString().replace('$', '').trim();
+  const handleSaveItem = () => {
+    if (!dishName.trim() || !price.trim()) {
+      Alert.alert('Validation Error', 'Please enter dish name and price.');
+      return;
+    }
 
-    if (!trimmedName || !cleanPrice || isNaN(cleanPrice)) {
-      Alert.alert('Error', 'Please enter a valid dish name and numeric price.');
+    const parsedPrice = parseFloat(price);
+    if (isNaN(parsedPrice) || parsedPrice <= 0) {
+      Alert.alert('Validation Error', 'Please enter a valid price.');
       return;
     }
 
     if (editingId) {
-      setMenu(menu.map(m => m.id === editingId ? { ...m, name: trimmedName, price: cleanPrice, category, inStock } : m));
+      setMenuItems(
+        menuItems.map((item) =>
+          item.id === editingId
+            ? { ...item, name: dishName, category, price: parsedPrice }
+            : item
+        )
+      );
     } else {
       const newItem = {
         id: Date.now().toString(),
-        name: trimmedName,
-        price: cleanPrice,
+        name: dishName,
         category,
-        inStock,
+        price: parsedPrice,
+        available: true,
       };
-      setMenu([...menu, newItem]);
+      setMenuItems([...menuItems, newItem]);
     }
+
     setModalVisible(false);
   };
 
-  const handleDelete = (id) => {
-    Alert.alert('Delete Item', 'Are you sure you want to remove this menu item?', [
+  const handleDeleteItem = (id) => {
+    Alert.alert('Delete Dish', 'Are you sure you want to remove this item from the menu?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => setMenu(menu.filter(m => m.id !== id)) },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => setMenuItems(menuItems.filter((i) => i.id !== id)),
+      },
     ]);
   };
 
-  const filteredMenu = menu.filter(item => {
-    if (selectedCategoryFilter === 'All') return true;
-    return item.category === selectedCategoryFilter;
-  });
+  const toggleAvailability = (id) => {
+    setMenuItems(
+      menuItems.map((item) =>
+        item.id === id ? { ...item, available: !item.available } : item
+      )
+    );
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation?.goBack()} style={styles.backBtn}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
+
+      {/* Modern Top Navigation Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity 
+          onPress={() => navigation?.goBack()} 
+          style={styles.backBtn}
+          activeOpacity={0.7}
+        >
           <Text style={styles.backText}>‹ Back</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Menu Management</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={openAddModal}>
-          <Text style={styles.addBtnText}>+ Add Dish</Text>
-        </TouchableOpacity>
+        
+        <View style={styles.roleBadgeContainer}>
+          <Text style={styles.roleBadgeText}>
+            {isAdmin ? '⚡ Admin Mode' : '👤 Customer View'}
+          </Text>
+        </View>
       </View>
 
-      {/* Category Filter Chips */}
-      <View style={styles.filterRow}>
-        {['All', ...CATEGORIES].map(cat => (
-          <TouchableOpacity
-            key={cat}
-            style={[styles.filterChip, selectedCategoryFilter === cat && styles.activeFilterChip]}
-            onPress={() => setSelectedCategoryFilter(cat)}
+      {/* Main Screen Header */}
+      <View style={styles.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title} numberOfLines={1}>
+            Restaurant Menu
+          </Text>
+          <Text style={styles.subtitle}>
+            {filteredMenu.length} items available
+          </Text>
+        </View>
+
+        {/* Admin Action: Add Button */}
+        {isAdmin && (
+          <TouchableOpacity 
+            style={styles.addBtn} 
+            onPress={openAddModal}
+            activeOpacity={0.8}
           >
-            <Text style={[styles.filterChipText, selectedCategoryFilter === cat && styles.activeFilterChipText]}>
-              {cat}
-            </Text>
+            <Text style={styles.addBtnText}>+ Add Dish</Text>
           </TouchableOpacity>
-        ))}
+        )}
+      </View>
+
+      {/* Category Horizontal Filter Chips */}
+      <View style={{ height: 42, marginBottom: 8 }}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryRow}
+        >
+          {CATEGORIES.map((cat) => (
+            <TouchableOpacity
+              key={cat}
+              style={[
+                styles.categoryChip,
+                selectedCategory === cat && styles.activeCategoryChip,
+              ]}
+              onPress={() => setSelectedCategory(cat)}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.categoryChipText,
+                  selectedCategory === cat && styles.activeCategoryChipText,
+                ]}
+              >
+                {cat}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       {/* Menu List */}
-      <ScrollView contentContainerStyle={styles.listContainer} showsVerticalScrollIndicator={false}>
-        {filteredMenu.map(item => (
-          <View key={item.id} style={styles.card}>
-            <View style={{ flex: 1 }}>
+      <FlatList
+        data={filteredMenu}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <View style={{ flex: 1, paddingRight: 10 }}>
               <View style={styles.nameRow}>
-                <Text style={styles.dishName}>{item.name}</Text>
-                {!item.inStock && <Text style={styles.outOfStockBadge}>86 / Out of Stock</Text>}
+                <Text style={styles.dishName} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                {!item.available && (
+                  <View style={styles.outBadge}>
+                    <Text style={styles.outBadgeText}>Sold Out</Text>
+                  </View>
+                )}
               </View>
               <Text style={styles.categoryText}>{item.category}</Text>
-              <Text style={styles.priceText}>${parseFloat(item.price).toFixed(2)}</Text>
+              <Text style={styles.priceText}>${item.price.toFixed(2)}</Text>
             </View>
 
-            <View style={styles.actionCol}>
-              <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(item)}>
-                <Text style={styles.editText}>Edit</Text>
+            {/* Actions Column */}
+            {isAdmin ? (
+              <View style={styles.adminActionCol}>
+                <TouchableOpacity
+                  style={styles.editBtn}
+                  onPress={() => openEditModal(item)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.editText}>Edit</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.toggleBtn}
+                  onPress={() => toggleAvailability(item.id)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.toggleText, !item.available && { color: '#35D49B' }]}>
+                    {item.available ? 'Disable' : 'Enable'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => handleDeleteItem(item.id)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.deleteText}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.addCartBtn, !item.available && styles.disabledCartBtn]}
+                disabled={!item.available}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.addCartText, !item.available && styles.disabledCartText]}>
+                  {item.available ? '+ Order' : 'Unavailable'}
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id)}>
-                <Text style={styles.deleteText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
+            )}
           </View>
-        ))}
-      </ScrollView>
+        )}
+      />
 
-      {/* Add / Edit Modal */}
-      <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
-          onPress={() => setModalVisible(false)}
+      {/* Admin Add/Edit Modal */}
+      {isAdmin && (
+        <Modal
+          visible={modalVisible}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setModalVisible(false)}
         >
-          <TouchableWithoutFeedback>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>{editingId ? 'Edit Dish' : 'Add New Dish'}</Text>
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setModalVisible(false)}
+          >
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>
+                  {editingId ? 'Edit Dish' : 'Add New Dish'}
+                </Text>
 
-              <Text style={styles.label}>Dish / Drink Name</Text>
-              <TextInput 
-                style={styles.input} 
-                value={dishName} 
-                onChangeText={setDishName} 
-                placeholder="e.g. Lobster Bisque" 
-                placeholderTextColor="#666" 
-              />
-
-              <Text style={styles.label}>Price ($)</Text>
-              <TextInput 
-                style={styles.input} 
-                value={price} 
-                onChangeText={setPrice} 
-                keyboardType="decimal-pad" 
-                placeholder="24.50" 
-                placeholderTextColor="#666" 
-              />
-
-              <Text style={styles.label}>Category</Text>
-              <View style={styles.chipRow}>
-                {CATEGORIES.map(c => (
-                  <TouchableOpacity 
-                    key={c} 
-                    style={[styles.chip, category === c && styles.activeChip]} 
-                    onPress={() => setCategory(c)}
-                  >
-                    <Text style={[styles.chipText, category === c && styles.activeChipText]}>{c}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={styles.switchRow}>
-                <Text style={styles.label}>In Stock / Available</Text>
-                <Switch 
-                  value={inStock} 
-                  onValueChange={setInStock} 
-                  trackColor={{ false: '#767577', true: 'rgba(255, 107, 0, 0.4)' }}
-                  thumbColor={inStock ? '#FF6B00' : '#f4f3f4'} 
+                <Text style={styles.label}>Dish Name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={dishName}
+                  onChangeText={setDishName}
+                  placeholder="e.g. Wagyu Steak"
+                  placeholderTextColor="#778197"
                 />
-              </View>
 
-              <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.cancelModalBtn} onPress={() => setModalVisible(false)}>
-                  <Text style={styles.cancelText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.saveModalBtn} onPress={handleSave}>
-                  <Text style={styles.saveText}>Save</Text>
-                </TouchableOpacity>
+                <Text style={styles.label}>Price ($)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={price}
+                  onChangeText={setPrice}
+                  keyboardType="numeric"
+                  placeholder="29.99"
+                  placeholderTextColor="#778197"
+                />
+
+                <Text style={styles.label}>Category</Text>
+                <View style={styles.chipRow}>
+                  {CATEGORIES.filter((c) => c !== 'All').map((c) => (
+                    <TouchableOpacity
+                      key={c}
+                      style={[
+                        styles.chip,
+                        category === c && styles.activeChip,
+                      ]}
+                      onPress={() => setCategory(c)}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          category === c && styles.activeChipText,
+                        ]}
+                      >
+                        {c}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity
+                    style={styles.cancelModalBtn}
+                    onPress={() => setModalVisible(false)}
+                  >
+                    <Text style={styles.cancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.saveModalBtn}
+                    onPress={handleSaveItem}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.saveText}>Save Dish</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          </TouchableWithoutFeedback>
-        </TouchableOpacity>
-      </Modal>
+            </TouchableWithoutFeedback>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B101D' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
-  backBtn: { padding: 4 },
-  backText: { color: '#FF6B00', fontSize: 16, fontWeight: '600' },
-  title: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
-  addBtn: { backgroundColor: '#FF6B00', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
-  addBtnText: { color: '#FFF', fontWeight: 'bold' },
-  filterRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 10 },
-  filterChip: { backgroundColor: '#161D2F', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginRight: 8 },
-  activeFilterChip: { backgroundColor: '#FF6B00' },
-  filterChipText: { color: '#8A94A6', fontSize: 12 },
-  activeFilterChipText: { color: '#FFF', fontWeight: 'bold' },
-  listContainer: { padding: 16, paddingBottom: 30 },
-  card: { backgroundColor: '#161D2F', padding: 14, borderRadius: 10, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between' },
-  nameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
-  dishName: { color: '#FFF', fontSize: 15, fontWeight: 'bold', marginRight: 8 },
-  outOfStockBadge: { color: '#FF5252', fontSize: 10, backgroundColor: 'rgba(255, 82, 82, 0.15)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  categoryText: { color: '#FF6B00', fontSize: 11, marginVertical: 2, fontWeight: '500' },
-  priceText: { color: '#00E676', fontSize: 14, fontWeight: 'bold', marginTop: 2 },
-  actionCol: { justifyContent: 'space-between', alignItems: 'flex-end' },
-  editBtn: { backgroundColor: '#1E2638', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4 },
-  editText: { color: '#00E676', fontSize: 11, fontWeight: '600' },
-  deleteBtn: { marginTop: 6 },
-  deleteText: { color: '#FF5252', fontSize: 11, fontWeight: '600' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#161D2F', padding: 20, borderRadius: 12 },
-  modalTitle: { color: '#FFF', fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
-  label: { color: '#8A94A6', fontSize: 12, marginTop: 10, marginBottom: 4 },
-  input: { backgroundColor: '#0B101D', color: '#FFF', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#2A3447' },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginVertical: 6 },
-  chip: { backgroundColor: '#0B101D', padding: 8, borderRadius: 6, marginRight: 6, marginBottom: 6, borderWidth: 1, borderColor: '#2A3447' },
-  activeChip: { backgroundColor: '#FF6B00', borderColor: '#FF6B00' },
-  chipText: { color: '#8A94A6', fontSize: 11 },
-  activeChipText: { color: '#FFF', fontWeight: 'bold' },
-  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 20 },
-  cancelModalBtn: { padding: 10, marginRight: 10 },
-  cancelText: { color: '#8A94A6' },
-  saveModalBtn: { backgroundColor: '#FF6B00', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 },
-  saveText: { color: '#FFF', fontWeight: 'bold' },
-});
+  container: { flex: 1, backgroundColor: '#070E20' },
+  
+  // Navigation & Header Styling
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'android' ? 8 : 0,
+    paddingBottom: 4,
+  },
+  backBtn: { paddingVertical: 4, paddingRight: 8 },
+  backText: { color: '#FF7622', fontSize: 16, fontWeight: '600' },
+  roleBadgeContainer: {
+    backgroundColor: '#101A31',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#202D49',
+  },
+  roleBadgeText: { color: '#FF7622', fontSize: 11, fontWeight: '700' },
+  
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  title: { color: '#FFF', fontSize: 22, fontWeight: '700' },
+  subtitle: { color: '#7E879B', fontSize: 12, marginTop: 2, fontWeight: '500' },
+  addBtn: {
+    backgroundColor: '#FF7622',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  addBtnText: { color: '#FFF', fontWeight: '700', fontSize: 12 },
 
-export default MenuCrudScreen;
+  // Horizontal Scroll Filter
+  categoryRow: { paddingHorizontal: 16, alignItems: 'center' },
+  categoryChip: {
+    backgroundColor: '#101A31',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#202D49',
+  },
+  activeCategoryChip: { backgroundColor: '#FF7622', borderColor: '#FF7622' },
+  categoryChipText: { color: '#8D96AA', fontSize: 12, fontWeight: '600' },
+  activeCategoryChipText: { color: '#FFF', fontWeight: '700' },
+
+  // Menu List Cards
+  listContainer: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 30 },
+  card: {
+    backgroundColor: '#0D162C',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#202D49',
+  },
+  nameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  dishName: { color: '#FFF', fontSize: 15, fontWeight: '700', marginRight: 6 },
+  outBadge: {
+    backgroundColor: 'rgba(255, 82, 106, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 82, 106, 0.3)',
+  },
+  outBadgeText: { color: '#FF526A', fontSize: 10, fontWeight: '700' },
+  categoryText: { color: '#7E879B', fontSize: 12, marginTop: 3 },
+  priceText: { color: '#35D49B', fontSize: 16, fontWeight: '700', marginTop: 4 },
+
+  // Admin Actions Column
+  adminActionCol: { alignItems: 'flex-end' },
+  editBtn: {
+    backgroundColor: 'rgba(53, 212, 155, 0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(53, 212, 155, 0.3)',
+    marginBottom: 4,
+  },
+  editText: { color: '#35D49B', fontSize: 11, fontWeight: '700' },
+  toggleBtn: { paddingHorizontal: 6, paddingVertical: 3, marginBottom: 2 },
+  toggleText: { color: '#F5AE22', fontSize: 11, fontWeight: '600' },
+  deleteBtn: { paddingHorizontal: 6, paddingVertical: 3 },
+  deleteText: { color: '#FF526A', fontSize: 11, fontWeight: '600' },
+
+  // User Cart Button
+  addCartBtn: {
+    backgroundColor: '#FF7622',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 8,
+  },
+  disabledCartBtn: { backgroundColor: '#101A31', borderWidth: 1, borderColor: '#202D49' },
+  addCartText: { color: '#FFF', fontWeight: '700', fontSize: 12 },
+  disabledCartText: { color: '#7E879B' },
+
+  // Modal Dialog Styling
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#0D162C',
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#202D49',
+  },
+  modalTitle: { color: '#FFF', fontSize: 18, fontWeight: '700', marginBottom: 14 },
+  label: { color: '#8D96AA', fontSize: 12, marginTop: 12, marginBottom: 6, fontWeight: '600' },
+  input: {
+    backgroundColor: '#070E20',
+    color: '#FFF',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#202D49',
+    fontSize: 13,
+  },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
+  chip: {
+    backgroundColor: '#070E20',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginRight: 6,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: '#202D49',
+  },
+  activeChip: { backgroundColor: '#FF7622', borderColor: '#FF7622' },
+  chipText: { color: '#8D96AA', fontSize: 11 },
+  activeChipText: { color: '#FFF', fontWeight: '700' },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 22, alignItems: 'center' },
+  cancelModalBtn: { paddingHorizontal: 16, paddingVertical: 10, marginRight: 8 },
+  cancelText: { color: '#8D96AA', fontWeight: '600' },
+  saveModalBtn: {
+    backgroundColor: '#FF7622',
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  saveText: { color: '#FFF', fontWeight: '700' },
+});

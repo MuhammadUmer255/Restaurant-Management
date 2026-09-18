@@ -1,291 +1,280 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
+  Text,
+  View,
   ScrollView,
+  TouchableOpacity,
   FlatList,
+  StatusBar,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-const CATEGORIES = ['All Items', 'Main Course', 'Drinks', 'Dessert'];
-
-const MENU_ITEMS = [
-  { id: '1', name: 'Truffle Wagyu Ribeye', category: 'Main Course', price: 68.00, tag: 'Chef Choice' },
-  { id: '2', name: 'Hokkaido Scallops Crudo', category: 'Main Course', price: 39.25, tag: 'Popular' },
-  { id: '3', name: 'Yuzu Basil Smash', category: 'Drinks', price: 28.00, tag: 'Cold' },
-  { id: '4', name: 'Smoked Oak Old Fashioned', category: 'Drinks', price: 32.50, tag: 'Signature' },
-  { id: '5', name: 'Matcha Lava Soufflé', category: 'Dessert', price: 22.00, tag: 'Sweet' },
+const INITIAL_ORDERS = [
+  {
+    id: 'ORD-101',
+    table: 'T-02',
+    waiter: 'Alex',
+    time: '12 mins ago',
+    status: 'In Kitchen',
+    paymentStatus: 'Unpaid',
+    total: '$96.00',
+    items: [
+      { qty: 1, name: 'Truffle Wagyu Ribeye', price: 68.00 },
+      { qty: 1, name: 'Yuzu Basil Smash', price: 28.00 },
+    ],
+  },
+  {
+    id: 'ORD-102',
+    table: 'T-04',
+    waiter: 'Sarah',
+    time: '25 mins ago',
+    status: 'Served',
+    paymentStatus: 'Unpaid',
+    total: '$39.25',
+    items: [
+      { qty: 1, name: 'Hokkaido Scallops Crudo', price: 39.25 },
+    ],
+  },
+  {
+    id: 'ORD-103',
+    table: 'VIP-1',
+    waiter: 'John',
+    time: '5 mins ago',
+    status: 'Pending',
+    paymentStatus: 'Unpaid',
+    total: '$390.00',
+    items: [
+      { qty: 1, name: 'Chef Special Platter', price: 390.00 },
+    ],
+  },
 ];
 
-export default function OrderScreen() {
-  const [selectedCategory, setSelectedCategory] = useState('All Items');
-  const [cart, setCart] = useState([
-    { id: '1', name: 'Truffle Wagyu Ribeye', price: 68.00, quantity: 1 },
-    { id: '3', name: 'Yuzu Basil Smash', price: 28.00, quantity: 2 },
-  ]);
+const STATUS_FILTERS = ['All', 'Pending', 'In Kitchen', 'Served', 'Completed'];
 
-  const filteredMenu = MENU_ITEMS.filter(
-    item => selectedCategory === 'All Items' || item.category === selectedCategory
+export default function OrdersScreen({ navigation }) {
+  const [orders, setOrders] = useState(INITIAL_ORDERS);
+  const [selectedFilter, setSelectedFilter] = useState('All');
+
+  const filteredOrders = orders.filter(
+    (order) => selectedFilter === 'All' || order.status === selectedFilter
   );
 
-  // Dynamic Calculation
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * 0.10; // 10% tax
-  const grandTotal = subtotal + tax;
-
-  const updateQuantity = (id, change) => {
-    setCart(prevCart =>
-      prevCart
-        .map(item => {
-          if (item.id === id) {
-            const newQty = item.quantity + change;
-            return newQty > 0 ? { ...item, quantity: newQty } : null;
-          }
-          return item;
-        })
-        .filter(Boolean)
+  const handleNextStatus = (orderId) => {
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id === orderId) {
+          let nextStatus = o.status;
+          if (o.status === 'Pending') nextStatus = 'In Kitchen';
+          else if (o.status === 'In Kitchen') nextStatus = 'Served';
+          return { ...o, status: nextStatus };
+        }
+        return o;
+      })
     );
   };
 
-  const addToCart = (item) => {
-    setCart(prevCart => {
-      const existing = prevCart.find(i => i.id === item.id);
-      if (existing) {
-        return prevCart.map(i =>
-          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
-        );
-      }
-      return [...prevCart, { id: item.id, name: item.name, price: item.price, quantity: 1 }];
-    });
+  const handleCheckout = (order) => {
+    navigation?.navigate('Billing', { orderData: order });
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
+
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.logo}>🛒 Active POS Order</Text>
-          <Text style={styles.subtitle}>Table T-02 • Server: Alex</Text>
+          <Text style={styles.title}>Live Orders</Text>
+          <Text style={styles.subtitle}>Active Kitchen & Service Orders</Text>
         </View>
-        <View style={styles.statusBadge}>
-          <Text style={styles.statusText}>● Preparing</Text>
-        </View>
+        <TouchableOpacity style={styles.newOrderBtn} activeOpacity={0.8}>
+          <Text style={styles.newOrderText}>+ New Order</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Category Tabs */}
-      <View style={styles.categoryContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {CATEGORIES.map(cat => (
+      {/* Status Filter Tabs */}
+      <View style={styles.filterWrapper}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          {STATUS_FILTERS.map((filter) => (
             <TouchableOpacity
-              key={cat}
-              style={[styles.categoryTab, selectedCategory === cat && styles.activeCategoryTab]}
-              onPress={() => setSelectedCategory(cat)}
+              key={filter}
+              style={[
+                styles.filterChip,
+                selectedFilter === filter && styles.activeFilterChip,
+              ]}
+              onPress={() => setSelectedFilter(filter)}
+              activeOpacity={0.7}
             >
-              <Text style={[styles.categoryText, selectedCategory === cat && styles.activeCategoryText]}>
-                {cat}
+              <Text
+                style={[
+                  styles.filterText,
+                  selectedFilter === filter && styles.activeFilterText,
+                ]}
+              >
+                {filter}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        {/* Menu Items Grid */}
-        <Text style={styles.sectionTitle}>Select Items</Text>
-        <View style={styles.menuGrid}>
-          {filteredMenu.map(item => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.menuCard}
-              onPress={() => addToCart(item)}
-            >
-              <View style={styles.tagBadge}>
-                <Text style={styles.tagText}>{item.tag}</Text>
+      {/* Orders List */}
+      <FlatList
+        data={filteredOrders}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => (
+          <View style={styles.orderCard}>
+            {/* Card Header */}
+            <View style={styles.cardHeader}>
+              <View>
+                <Text style={styles.tableText}>Table {item.table}</Text>
+                <Text style={styles.orderIdText}>{item.id} • Waiter: {item.waiter}</Text>
               </View>
-              <Text style={styles.menuName}>{item.name}</Text>
-              <View style={styles.menuFooter}>
-                <Text style={styles.menuPrice}>${item.price.toFixed(2)}</Text>
-                <View style={styles.addBtn}>
-                  <Text style={styles.addBtnText}>+</Text>
-                </View>
+              <View style={styles.statusBadgeWrapper}>
+                <StatusBadge status={item.status} />
+                <Text style={styles.timeText}>⏱ {item.time}</Text>
               </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+            </View>
 
-        {/* Current Order Summary Panel */}
-        <View style={styles.cartPanel}>
-          <View style={styles.cartHeader}>
-            <Text style={styles.cartTitle}>Current Order ({cart.reduce((a, b) => a + b.quantity, 0)})</Text>
-            <TouchableOpacity onPress={() => setCart([])}>
-              <Text style={styles.clearText}>Clear All</Text>
-            </TouchableOpacity>
-          </View>
+            <View style={styles.divider} />
 
-          <View style={styles.divider} />
-
-          {cart.length === 0 ? (
-            <Text style={styles.emptyCart}>No items added to this ticket yet.</Text>
-          ) : (
-            cart.map(item => (
-              <View key={item.id} style={styles.cartItem}>
-                <View style={styles.cartItemInfo}>
-                  <Text style={styles.cartItemName}>{item.name}</Text>
-                  <Text style={styles.cartItemPrice}>
-                    ${(item.price * item.quantity).toFixed(2)}
+            {/* Order Items */}
+            <View style={styles.itemsList}>
+              {item.items.map((subItem, index) => (
+                <View key={index} style={styles.itemRow}>
+                  <Text style={styles.itemQty}>{subItem.qty}x</Text>
+                  <Text style={styles.itemName} numberOfLines={1}>{subItem.name}</Text>
+                  <Text style={styles.itemPrice}>
+                    ${typeof subItem.price === 'number' ? subItem.price.toFixed(2) : subItem.price}
                   </Text>
                 </View>
+              ))}
+            </View>
 
-                {/* Quantity Controller */}
-                <View style={styles.qtyContainer}>
-                  <TouchableOpacity
-                    style={styles.qtyBtn}
-                    onPress={() => updateQuantity(item.id, -1)}
-                  >
-                    <Text style={styles.qtyBtnText}>-</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.qtyText}>{item.quantity}</Text>
-                  <TouchableOpacity
-                    style={styles.qtyBtn}
-                    onPress={() => updateQuantity(item.id, 1)}
-                  >
-                    <Text style={styles.qtyBtnText}>+</Text>
-                  </TouchableOpacity>
-                </View>
+            <View style={styles.divider} />
+
+            {/* Card Footer */}
+            <View style={styles.cardFooter}>
+              <View>
+                <Text style={styles.totalLabel}>Total Amount</Text>
+                <Text style={styles.totalValue}>{item.total}</Text>
               </View>
-            ))
-          )}
 
-          {/* Checkout Totals */}
-          <View style={styles.divider} />
-          
-          <View style={styles.billRow}>
-            <Text style={styles.billLabel}>Subtotal</Text>
-            <Text style={styles.billValue}>${subtotal.toFixed(2)}</Text>
+              {item.status === 'Served' ? (
+                <TouchableOpacity
+                  style={styles.checkoutBtn}
+                  onPress={() => handleCheckout(item)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.checkoutBtnText}>Proceed to Pay 💳</Text>
+                </TouchableOpacity>
+              ) : item.status !== 'Completed' ? (
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  onPress={() => handleNextStatus(item.id)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.actionBtnText}>
+                    {item.status === 'Pending' && 'Send to Kitchen'}
+                    {item.status === 'In Kitchen' && 'Mark Served'}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.completedBadge}>
+                  <Text style={styles.completedText}>✓ Order Paid</Text>
+                </View>
+              )}
+            </View>
           </View>
-          <View style={styles.billRow}>
-            <Text style={styles.billLabel}>Tax (10%)</Text>
-            <Text style={styles.billValue}>${tax.toFixed(2)}</Text>
-          </View>
-          <View style={[styles.billRow, { marginTop: 6 }]}>
-            <Text style={styles.totalLabel}>Total Due</Text>
-            <Text style={styles.totalValue}>${grandTotal.toFixed(2)}</Text>
-          </View>
-
-          {/* Action Buttons */}
-          <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.kitchenBtn}>
-              <Text style={styles.kitchenBtnText}>Send to Kitchen</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.payBtn}>
-              <Text style={styles.payBtnText}>Pay Now</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
+        )}
+      />
     </SafeAreaView>
+  );
+}
+
+function StatusBadge({ status }) {
+  let bg = '#12382E';
+  let color = '#35D49B';
+
+  if (status === 'Pending') {
+    bg = '#3B2D12';
+    color = '#F5AE22';
+  } else if (status === 'In Kitchen') {
+    bg = '#102A45';
+    color = '#2196F3';
+  } else if (status === 'Served') {
+    bg = '#3A1822';
+    color = '#FF526A';
+  }
+
+  return (
+    <View style={[styles.badge, { backgroundColor: bg }]}>
+      <Text style={[styles.badgeText, { color }]}>● {status}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#070E20' },
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'android' ? 8 : 12,
+    paddingBottom: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  logo: { color: '#FFFFFF', fontSize: 20, fontWeight: '800' },
-  subtitle: { color: '#7D879D', fontSize: 12, marginTop: 4 },
-  statusBadge: { backgroundColor: '#3B2D12', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-  statusText: { color: '#F5AE22', fontSize: 12, fontWeight: '700' },
-  
-  categoryContainer: { paddingHorizontal: 16, marginBottom: 12 },
-  categoryTab: {
-    backgroundColor: '#0D162C',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
+  title: { color: '#FFF', fontSize: 22, fontWeight: 'bold' },
+  subtitle: { color: '#7D879D', fontSize: 12, marginTop: 2 },
+  newOrderBtn: { backgroundColor: '#FF7622', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
+  newOrderText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
+  filterWrapper: { marginBottom: 10 },
+  filterRow: { paddingHorizontal: 16 },
+  filterChip: {
+    backgroundColor: '#101A31',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
     marginRight: 8,
     borderWidth: 1,
     borderColor: '#202D49',
   },
-  activeCategoryTab: { backgroundColor: '#FF7622', borderColor: '#FF7622' },
-  categoryText: { color: '#8D96AA', fontWeight: '600' },
-  activeCategoryText: { color: '#FFFFFF', fontWeight: '800' },
-
-  content: { padding: 16, paddingBottom: 40 },
-  sectionTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '700', marginBottom: 12 },
-
-  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  menuCard: {
-    width: '48%',
+  activeFilterChip: { backgroundColor: '#FF7622', borderColor: '#FF7622' },
+  filterText: { color: '#8D96AA', fontSize: 12, fontWeight: '600' },
+  activeFilterText: { color: '#FFF', fontWeight: 'bold' },
+  listContainer: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 30 },
+  orderCard: {
     backgroundColor: '#0D162C',
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: '#202D49',
-    marginBottom: 12,
   },
-  tagBadge: { backgroundColor: '#1A2640', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  tagText: { color: '#FF7622', fontSize: 10, fontWeight: '700' },
-  menuName: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', marginTop: 10, height: 40 },
-  menuFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
-  menuPrice: { color: '#35D49B', fontSize: 16, fontWeight: '800' },
-  addBtn: { backgroundColor: '#FF7622', width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  addBtnText: { color: '#FFFFFF', fontSize: 18, fontWeight: '800' },
-
-  cartPanel: {
-    backgroundColor: '#0D162C',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#25334F',
-    padding: 18,
-    marginTop: 10,
-  },
-  cartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cartTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '800' },
-  clearText: { color: '#FF526A', fontSize: 12, fontWeight: '600' },
-  divider: { height: 1, backgroundColor: '#202D49', marginVertical: 14 },
-  emptyCart: { color: '#7D879D', fontStyle: 'italic', textAlign: 'center', paddingVertical: 10 },
-
-  cartItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  cartItemInfo: { flex: 1, marginRight: 10 },
-  cartItemName: { color: '#D9DDE7', fontSize: 14, fontWeight: '600' },
-  cartItemPrice: { color: '#35D49B', fontSize: 13, fontWeight: '700', marginTop: 2 },
-  
-  qtyContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#16223B', borderRadius: 8, padding: 4 },
-  qtyBtn: { width: 26, height: 26, backgroundColor: '#202D49', borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
-  qtyBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
-  qtyText: { color: '#FFFFFF', paddingHorizontal: 10, fontWeight: '700' },
-
-  billRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  billLabel: { color: '#7D879D', fontSize: 13 },
-  billValue: { color: '#BFC5D3', fontSize: 13, fontWeight: '600' },
-  totalLabel: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
-  totalValue: { color: '#35D49B', fontSize: 18, fontWeight: '800' },
-
-  actionRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 18 },
-  kitchenBtn: {
-    width: '48%',
-    height: 46,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2A3753',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  kitchenBtnText: { color: '#C8CEDA', fontWeight: '700' },
-  payBtn: {
-    width: '48%',
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: '#35D49B',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  payBtnText: { color: '#070E20', fontWeight: '800', fontSize: 15 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  tableText: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
+  orderIdText: { color: '#7E879B', fontSize: 12, marginTop: 2 },
+  statusBadgeWrapper: { alignItems: 'flex-end' },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  badgeText: { fontSize: 11, fontWeight: '700' },
+  timeText: { color: '#7E879B', fontSize: 10, marginTop: 4 },
+  divider: { height: 1, backgroundColor: '#202D49', marginVertical: 12 },
+  itemsList: { marginVertical: 2 },
+  itemRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 4 },
+  itemQty: { color: '#FF7622', fontWeight: 'bold', width: 28 },
+  itemName: { color: '#D9DDE7', flex: 1, fontSize: 13, paddingRight: 8 },
+  itemPrice: { color: '#FFF', fontWeight: '600', fontSize: 13 },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
+  totalLabel: { color: '#7E879B', fontSize: 10 },
+  totalValue: { color: '#35D49B', fontSize: 18, fontWeight: 'bold' },
+  actionBtn: { backgroundColor: '#101A31', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#25334F' },
+  actionBtnText: { color: '#FF7622', fontWeight: 'bold', fontSize: 12 },
+  checkoutBtn: { backgroundColor: '#FF7622', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
+  checkoutBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
+  completedBadge: { backgroundColor: '#12382E', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
+  completedText: { color: '#35D49B', fontWeight: '600', fontSize: 12 },
 });
