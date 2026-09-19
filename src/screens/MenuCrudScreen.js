@@ -28,15 +28,21 @@ const CATEGORIES = ['All', 'Starters', 'Mains', 'Desserts', 'Beverages'];
 export default function MenuCrudScreen({ route, navigation }) {
   // Role Detection (Supports both Route params & AuthContext)
   const authContext = useAuth ? useAuth() : {};
-  const currentRole = route?.params?.role || authContext?.userRole || 'user';
+  const currentRole = route?.params?.role || authContext?.userRole || 'admin';
   const isAdmin = currentRole === 'admin';
 
   const [menuItems, setMenuItems] = useState(INITIAL_MENU);
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingId, setEditingId] = useState(null);
 
-  // Form State for Admin CRUD
+  // Selected item state for Context Actions
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  // Modal Visibility States
+  const [actionMenuVisible, setActionMenuVisible] = useState(false);
+  const [formModalVisible, setFormModalVisible] = useState(false);
+  const [currentAction, setCurrentAction] = useState(null); // 'EDIT' or 'ADD'
+
+  // Form Input States
   const [dishName, setDishName] = useState('');
   const [category, setCategory] = useState('Mains');
   const [price, setPrice] = useState('');
@@ -46,23 +52,69 @@ export default function MenuCrudScreen({ route, navigation }) {
     (item) => selectedCategory === 'All' || item.category === selectedCategory
   );
 
-  // Modal Handlers for Admin
+  // 1. Tapping an Item / Card
+  const handleItemPress = (item) => {
+    if (!isAdmin) return;
+    setSelectedItem(item);
+    setActionMenuVisible(true);
+  };
+
+  // 2. Tapping Header "+ Add Dish"
   const openAddModal = () => {
-    setEditingId(null);
+    setSelectedItem(null);
+    setCurrentAction('ADD');
     setDishName('');
     setCategory('Mains');
     setPrice('');
-    setModalVisible(true);
+    setFormModalVisible(true);
   };
 
-  const openEditModal = (item) => {
-    setEditingId(item.id);
-    setDishName(item.name);
-    setCategory(item.category);
-    setPrice(item.price.toString());
-    setModalVisible(true);
+  // 3. User selects Action from Context Sheet
+  const handleSelectAction = (action) => {
+    setActionMenuVisible(false);
+
+    if (action === 'DELETE') {
+      Alert.alert(
+        'Delete Dish',
+        `Are you sure you want to remove "${selectedItem?.name}" from the menu?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => {
+              setMenuItems((prev) => prev.filter((i) => i.id !== selectedItem?.id));
+              setSelectedItem(null);
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    if (action === 'TOGGLE') {
+      if (selectedItem) {
+        toggleAvailability(selectedItem.id);
+      }
+      return;
+    }
+
+    setCurrentAction(action);
+
+    if (action === 'EDIT' && selectedItem) {
+      setDishName(selectedItem.name);
+      setCategory(selectedItem.category);
+      setPrice(selectedItem.price.toString());
+    } else {
+      setDishName('');
+      setCategory('Mains');
+      setPrice('');
+    }
+
+    setFormModalVisible(true);
   };
 
+  // 4. Save handler for Form Modal
   const handleSaveItem = () => {
     if (!dishName.trim() || !price.trim()) {
       Alert.alert('Validation Error', 'Please enter dish name and price.');
@@ -75,10 +127,10 @@ export default function MenuCrudScreen({ route, navigation }) {
       return;
     }
 
-    if (editingId) {
-      setMenuItems(
-        menuItems.map((item) =>
-          item.id === editingId
+    if (currentAction === 'EDIT' && selectedItem) {
+      setMenuItems((prev) =>
+        prev.map((item) =>
+          item.id === selectedItem.id
             ? { ...item, name: dishName, category, price: parsedPrice }
             : item
         )
@@ -91,26 +143,16 @@ export default function MenuCrudScreen({ route, navigation }) {
         price: parsedPrice,
         available: true,
       };
-      setMenuItems([...menuItems, newItem]);
+      setMenuItems((prev) => [newItem, ...prev]);
     }
 
-    setModalVisible(false);
-  };
-
-  const handleDeleteItem = (id) => {
-    Alert.alert('Delete Dish', 'Are you sure you want to remove this item from the menu?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => setMenuItems(menuItems.filter((i) => i.id !== id)),
-      },
-    ]);
+    setFormModalVisible(false);
+    setSelectedItem(null);
   };
 
   const toggleAvailability = (id) => {
-    setMenuItems(
-      menuItems.map((item) =>
+    setMenuItems((prev) =>
+      prev.map((item) =>
         item.id === id ? { ...item, available: !item.available } : item
       )
     );
@@ -120,7 +162,7 @@ export default function MenuCrudScreen({ route, navigation }) {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
 
-      {/* Modern Top Navigation Bar */}
+      {/* Top Navigation Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity 
           onPress={() => navigation?.goBack()} 
@@ -197,7 +239,11 @@ export default function MenuCrudScreen({ route, navigation }) {
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.card}
+            activeOpacity={isAdmin ? 0.7 : 1}
+            onPress={() => handleItemPress(item)}
+          >
             <View style={{ flex: 1, paddingRight: 10 }}>
               <View style={styles.nameRow}>
                 <Text style={styles.dishName} numberOfLines={1}>
@@ -213,34 +259,10 @@ export default function MenuCrudScreen({ route, navigation }) {
               <Text style={styles.priceText}>${item.price.toFixed(2)}</Text>
             </View>
 
-            {/* Actions Column */}
+            {/* Actions / Status Right Edge Indicator */}
             {isAdmin ? (
-              <View style={styles.adminActionCol}>
-                <TouchableOpacity
-                  style={styles.editBtn}
-                  onPress={() => openEditModal(item)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.editText}>Edit</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.toggleBtn}
-                  onPress={() => toggleAvailability(item.id)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.toggleText, !item.available && { color: '#35D49B' }]}>
-                    {item.available ? 'Disable' : 'Enable'}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.deleteBtn}
-                  onPress={() => handleDeleteItem(item.id)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.deleteText}>Delete</Text>
-                </TouchableOpacity>
+              <View style={styles.tapIndicator}>
+                <Text style={styles.tapIndicatorText}>Manage ›</Text>
               </View>
             ) : (
               <TouchableOpacity
@@ -253,27 +275,86 @@ export default function MenuCrudScreen({ route, navigation }) {
                 </Text>
               </TouchableOpacity>
             )}
-          </View>
+          </TouchableOpacity>
         )}
       />
 
-      {/* Admin Add/Edit Modal */}
+      {/* STEP 1: Context Action Menu Sheet (Modal) */}
       {isAdmin && (
         <Modal
-          visible={modalVisible}
+          visible={actionMenuVisible}
           animationType="fade"
           transparent
-          onRequestClose={() => setModalVisible(false)}
+          onRequestClose={() => setActionMenuVisible(false)}
         >
           <TouchableOpacity
             style={styles.modalOverlay}
             activeOpacity={1}
-            onPress={() => setModalVisible(false)}
+            onPress={() => setActionMenuVisible(false)}
+          >
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle} numberOfLines={1}>
+                  {selectedItem?.name || 'Item Options'}
+                </Text>
+                <Text style={styles.modalSubtitle}>Select an action to perform:</Text>
+
+                <TouchableOpacity
+                  style={[styles.sheetOptionBtn, styles.editOptionBtn]}
+                  onPress={() => handleSelectAction('EDIT')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.editOptionText}>  Edit Dish Details</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.sheetOptionBtn, styles.toggleOptionBtn]}
+                  onPress={() => handleSelectAction('TOGGLE')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.toggleOptionText}>
+                    {selectedItem?.available ? '  Mark as Sold Out' : '✅  Mark as Available'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.sheetOptionBtn, styles.deleteOptionBtn]}
+                  onPress={() => handleSelectAction('DELETE')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.deleteOptionText}>  Delete Dish</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.cancelSheetBtn}
+                  onPress={() => setActionMenuVisible(false)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      {/* STEP 2: Detail Form Modal */}
+      {isAdmin && (
+        <Modal
+          visible={formModalVisible}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setFormModalVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setFormModalVisible(false)}
           >
             <TouchableWithoutFeedback>
               <View style={styles.modalContent}>
                 <Text style={styles.modalTitle}>
-                  {editingId ? 'Edit Dish' : 'Add New Dish'}
+                  {currentAction === 'EDIT' ? 'Edit Dish' : 'Add New Dish'}
                 </Text>
 
                 <Text style={styles.label}>Dish Name</Text>
@@ -322,7 +403,7 @@ export default function MenuCrudScreen({ route, navigation }) {
                 <View style={styles.modalActions}>
                   <TouchableOpacity
                     style={styles.cancelModalBtn}
-                    onPress={() => setModalVisible(false)}
+                    onPress={() => setFormModalVisible(false)}
                   >
                     <Text style={styles.cancelText}>Cancel</Text>
                   </TouchableOpacity>
@@ -426,22 +507,16 @@ const styles = StyleSheet.create({
   categoryText: { color: '#7E879B', fontSize: 12, marginTop: 3 },
   priceText: { color: '#35D49B', fontSize: 16, fontWeight: '700', marginTop: 4 },
 
-  // Admin Actions Column
-  adminActionCol: { alignItems: 'flex-end' },
-  editBtn: {
-    backgroundColor: 'rgba(53, 212, 155, 0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+  // Admin Manage Indicator Right Side
+  tapIndicator: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 6,
+    backgroundColor: '#101A31',
     borderWidth: 1,
-    borderColor: 'rgba(53, 212, 155, 0.3)',
-    marginBottom: 4,
+    borderColor: '#202D49',
   },
-  editText: { color: '#35D49B', fontSize: 11, fontWeight: '700' },
-  toggleBtn: { paddingHorizontal: 6, paddingVertical: 3, marginBottom: 2 },
-  toggleText: { color: '#F5AE22', fontSize: 11, fontWeight: '600' },
-  deleteBtn: { paddingHorizontal: 6, paddingVertical: 3 },
-  deleteText: { color: '#FF526A', fontSize: 11, fontWeight: '600' },
+  tapIndicatorText: { color: '#FF7622', fontSize: 11, fontWeight: '600' },
 
   // User Cart Button
   addCartBtn: {
@@ -453,6 +528,35 @@ const styles = StyleSheet.create({
   disabledCartBtn: { backgroundColor: '#101A31', borderWidth: 1, borderColor: '#202D49' },
   addCartText: { color: '#FFF', fontWeight: '700', fontSize: 12 },
   disabledCartText: { color: '#7E879B' },
+
+  // Context Sheet Option Buttons
+  sheetOptionBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+  },
+  editOptionBtn: {
+    backgroundColor: 'rgba(53, 212, 155, 0.12)',
+    borderColor: 'rgba(53, 212, 155, 0.3)',
+  },
+  editOptionText: { color: '#35D49B', fontWeight: '700', fontSize: 13 },
+  toggleOptionBtn: {
+    backgroundColor: 'rgba(245, 174, 34, 0.12)',
+    borderColor: 'rgba(245, 174, 34, 0.3)',
+  },
+  toggleOptionText: { color: '#F5AE22', fontWeight: '700', fontSize: 13 },
+  deleteOptionBtn: {
+    backgroundColor: 'rgba(255, 82, 106, 0.12)',
+    borderColor: 'rgba(255, 82, 106, 0.3)',
+  },
+  deleteOptionText: { color: '#FF526A', fontWeight: '700', fontSize: 13 },
+  cancelSheetBtn: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginTop: 4,
+  },
 
   // Modal Dialog Styling
   modalOverlay: {
@@ -468,7 +572,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#202D49',
   },
-  modalTitle: { color: '#FFF', fontSize: 18, fontWeight: '700', marginBottom: 14 },
+  modalTitle: { color: '#FFF', fontSize: 18, fontWeight: '700', marginBottom: 4 },
+  modalSubtitle: { color: '#7E879B', fontSize: 12, marginBottom: 16 },
   label: { color: '#8D96AA', fontSize: 12, marginTop: 12, marginBottom: 6, fontWeight: '600' },
   input: {
     backgroundColor: '#070E20',
