@@ -1,21 +1,21 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
+import { useAuth } from '../context/AuthContext';
 
 // Auth Screens
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 
-// Tab Navigator
+// Tab Navigator & Operational Screens
 import MainTabNavigator from './MainTabNavigator';
-
-// Individual Operational Screens
 import DashboardScreen from '../screens/DashboardScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import TablesScreen from '../screens/TablesScreen';
 import BillingScreen from '../screens/BillingScreen';
 
-// Admin Management CRUD Flow
+// Admin CRUD
 import EmployeeCrudScreen from '../screens/EmployeeCrudScreen';
 import TableCrudScreen from '../screens/TableCrudScreen';
 import MenuCrudScreen from '../screens/MenuCrudScreen';
@@ -23,6 +23,8 @@ import MenuCrudScreen from '../screens/MenuCrudScreen';
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
+  const { user, userToken } = useAuth();
+
   return (
     <NavigationContainer>
       <Stack.Navigator
@@ -32,23 +34,30 @@ const AppNavigator = () => {
           contentStyle: { backgroundColor: '#070E20' },
         }}
       >
-        {/* Auth Flow */}
-        <Stack.Screen name="LoginScreen" component={LoginScreen} />
-        <Stack.Screen name="RegisterScreen" component={RegisterScreen} />
-
-        {/* Main Tab Navigator */}
-        <Stack.Screen name="MainTabs" component={MainTabNavigator} />
-
-        {/* Operational Flow */}
-        <Stack.Screen name="DashboardScreen" component={DashboardScreen} />
-        <Stack.Screen name="OrdersScreen" component={OrdersScreen} />
-        <Stack.Screen name="TablesScreen" component={TablesScreen} />
-        <Stack.Screen name="BillingScreen" component={BillingScreen} />
-
-        {/* Admin Management CRUD Flow */}
-        <Stack.Screen name="EmployeeCrudScreen" component={EmployeeCrudScreen} />
-        <Stack.Screen name="TableCrudScreen" component={TableCrudScreen} />
-        <Stack.Screen name="MenuCrudScreen" component={MenuCrudScreen} />
+        {!userToken ? (
+          // 🔴 Unauthenticated Stack
+          <>
+            <Stack.Screen name="LoginScreen" component={LoginScreen} />
+            <Stack.Screen name="RegisterScreen" component={RegisterScreen} />
+            <Stack.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen} />
+          </>
+        ) : (
+          // 🟢 Authenticated Stack (Passes user role to MainTabs)
+          <>
+            <Stack.Screen
+              name="MainTabs"
+              component={MainTabNavigator}
+              initialParams={{ role: user?.role || 'user' }}
+            />
+            <Stack.Screen name="DashboardScreen" component={DashboardScreen} />
+            <Stack.Screen name="OrdersScreen" component={OrdersScreen} />
+            <Stack.Screen name="TablesScreen" component={TablesScreen} />
+            <Stack.Screen name="BillingScreen" component={BillingScreen} />
+            <Stack.Screen name="EmployeeCrudScreen" component={EmployeeCrudScreen} />
+            <Stack.Screen name="TableCrudScreen" component={TableCrudScreen} />
+            <Stack.Screen name="MenuCrudScreen" component={MenuCrudScreen} />
+          </>
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -2,6 +2,8 @@ import React from 'react';
 import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
+import { useAuth } from '../context/AuthContext';
+
 // Screens
 import DashboardScreen from '../screens/DashboardScreen';
 import TablesScreen from '../screens/TablesScreen';
@@ -14,7 +16,8 @@ import EmployeeCrudScreen from '../screens/EmployeeCrudScreen';
 const Tab = createBottomTabNavigator();
 
 const MainTabNavigator = ({ route }) => {
-  const rawRole = route?.params?.role || 'user';
+  const { user } = useAuth();
+  const rawRole = user?.role || route?.params?.role || 'user';
   const isAdmin = String(rawRole).toLowerCase() === 'admin';
 
   return (

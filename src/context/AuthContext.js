@@ -3,13 +3,11 @@ import React, { createContext, useState, useContext } from 'react';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState({
-    name: 'Muhammad Umer',
-    role: 'user', 
-  });
+  // Set initial state to null so AppNavigator defaults to LoginScreen (Unauthenticated)
+  const [user, setUser] = useState(null);
 
-  const login = (roleType) => {
-    setUser({ name: roleType === 'admin' ? 'Admin Manager' : 'Muhammad Umer', role: roleType });
+  const login = (userData) => {
+    setUser(userData || { name: 'Muhammad Umer', role: 'user' });
   };
 
   const logout = () => {
@@ -17,7 +15,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAdmin: user?.role === 'admin' }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        userToken: user ? 'active_auth_token' : null,
+        isLoading: false,
+        login,
+        logout,
+        isAdmin: user?.role === 'admin',
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

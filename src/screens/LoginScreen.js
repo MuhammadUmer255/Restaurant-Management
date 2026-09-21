@@ -1,161 +1,230 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   Text,
   View,
-  SafeAreaView,
   TextInput,
   TouchableOpacity,
-  Alert,
+  StatusBar,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Animated,
+  ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../context/AuthContext';
+import { validateEmail } from '../utils/authValidation';
 
 export default function LoginScreen({ navigation }) {
-  const [role, setRole] = useState('admin'); // 'admin' or 'staff'
+  const { login } = useAuth();
+
+  // Role Selection State ('user' | 'admin')
+  const [selectedRole, setSelectedRole] = useState('user');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [pin, setPin] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Inline Field Errors
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
+  // Toast State & Animation
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const showToast = (message, type = 'success') => {
+    setToastMessage(message);
+    setToastType(type);
+    fadeAnim.stopAnimation();
+
+    Animated.sequence([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.delay(2500),
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
 
   const handleLogin = () => {
-    // 1. Email Validation
-    if (!email.trim() || !email.includes('@')) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address.');
-      return;
+    let isValid = true;
+    setEmailError('');
+    setPasswordError('');
+
+    if (!email.trim()) {
+      setEmailError('Email address is required.');
+      isValid = false;
+    } else if (!validateEmail(email)) {
+      setEmailError('Please enter a valid email address.');
+      isValid = false;
     }
 
-    // 2. Authentication Logic
-    if (role === 'admin') {
-      if (!password.trim()) {
-        Alert.alert('Password Required', 'Please enter your admin password.');
-        return;
-      }
-
-      // Demo Admin Auth Verification
-      if (email.toLowerCase() === 'admin@gourmetos.com' && password === 'admin123') {
-        navigation.replace('MainTabs', { role: 'admin' });
-      } else {
-        // Fallback demo approval for testing
-        Alert.alert(
-          'Login Successful',
-          'Logged in as Admin (Demo Mode)',
-          [
-            {
-              text: 'Continue',
-              onPress: () => navigation.replace('MainTabs', { role: 'admin' }),
-            },
-          ]
-        );
-      }
-    } else {
-      // Staff / Waiter Mode Validation
-      if (!pin.trim() || pin.length < 4) {
-        Alert.alert('PIN Required', 'Please enter a valid 4-digit Staff PIN.');
-        return;
-      }
-
-      // Demo Staff Auth Verification
-      if (pin === '9999' || pin.length === 4) {
-        navigation.replace('MainTabs', { role: 'user' });
-      } else {
-        Alert.alert('Error', 'Invalid Staff PIN. Try 9999.');
-      }
+    if (!password) {
+      setPasswordError('Password is required.');
+      isValid = false;
     }
+
+    if (!isValid) return;
+
+    setLoading(true);
+
+    setTimeout(() => {
+      setLoading(false);
+      showToast(`Signed in as ${selectedRole === 'admin' ? 'Admin Manager' : 'Staff / User'}!`, 'success');
+      
+      // Perform login in AuthContext with chosen role
+      login({
+        email: email,
+        name: email.split('@')[0],
+        role: selectedRole,
+      });
+    }, 1000);
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Header Branding */}
-          <View style={styles.brandContainer}>
-            <Text style={styles.logoIcon}>🍴</Text>
-            <Text style={styles.brandName}>GourmetOS</Text>
-            <Text style={styles.brandTagline}>High-Performance POS System</Text>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
+
+      {/* Toast Banner */}
+      {!!toastMessage && (
+        <Animated.View
+          style={[
+            styles.toastContainer,
+            toastType === 'success' ? styles.toastSuccess : styles.toastError,
+            { opacity: fadeAnim },
+          ]}
+        >
+          <Text style={styles.toastText}>
+            {toastType === 'success' ? '✓ ' : '⚠️ '}
+            {toastMessage}
+          </Text>
+        </Animated.View>
+      )}
+
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          
+          <View style={styles.headerContainer}>
+            <Text style={styles.title}>Welcome Back! 👋</Text>
+            <Text style={styles.subtitle}>
+              {selectedRole === 'admin'
+                ? 'Sign in as Admin Manager for full access, CRUD & management.'
+                : 'Sign in as User / Staff to view tables, menu & process orders.'}
+            </Text>
           </View>
 
-          {/* Role Selection Toggle */}
-          <Text style={styles.label}>Select Login Mode</Text>
-          <View style={styles.roleToggleRow}>
+          {/* Role Switcher Tabs */}
+          <View style={styles.roleToggleContainer}>
             <TouchableOpacity
-              style={[styles.roleBtn, role === 'admin' && styles.activeRoleBtn]}
-              onPress={() => setRole('admin')}
+              style={[
+                styles.roleTab,
+                selectedRole === 'user' && styles.roleTabActive,
+              ]}
+              onPress={() => setSelectedRole('user')}
+              activeOpacity={0.8}
             >
-              <Text style={[styles.roleBtnText, role === 'admin' && styles.activeRoleText]}>
-                👑 Admin / Manager
+              <Text
+                style={[
+                  styles.roleTabText,
+                  selectedRole === 'user' && styles.roleTabTextActive,
+                ]}
+              >
+                👤 Sign in as User
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.roleBtn, role === 'staff' && styles.activeRoleBtn]}
-              onPress={() => setRole('staff')}
+              style={[
+                styles.roleTab,
+                selectedRole === 'admin' && styles.roleTabActive,
+              ]}
+              onPress={() => setSelectedRole('admin')}
+              activeOpacity={0.8}
             >
-              <Text style={[styles.roleBtnText, role === 'staff' && styles.activeRoleText]}>
-                👔 User
+              <Text
+                style={[
+                  styles.roleTabText,
+                  selectedRole === 'admin' && styles.roleTabTextActive,
+                ]}
+              >
+                👑 Sign in as Admin
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Form Fields */}
-          <View style={styles.formCard}>
-            <Text style={styles.label}>Email Address</Text>
+          <View style={styles.card}>
+            <Text style={styles.label}>
+              {selectedRole === 'admin' ? 'Admin Email Address' : 'User / Staff Email'}
+            </Text>
             <TextInput
-              style={styles.input}
-              placeholder={role === 'admin' ? "admin@gourmetos.com" : "user@gourmetos.com"}
-              placeholderTextColor="#778197"
+              style={[styles.input, emailError ? styles.inputErrorBorder : null]}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(val) => {
+                setEmail(val);
+                setEmailError('');
+              }}
+              placeholder={selectedRole === 'admin' ? 'admin@gourmet.com' : 'user@gourmet.com'}
+              placeholderTextColor="#68738D"
               keyboardType="email-address"
               autoCapitalize="none"
             />
+            {!!emailError && <Text style={styles.fieldErrorText}>{emailError}</Text>}
 
-            {role === 'admin' ? (
-              <>
-                <Text style={styles.label}>Admin Password</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="••••••••"
-                  placeholderTextColor="#778197"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                />
-              </>
-            ) : (
-              <>
-                <Text style={styles.label}>User Access PIN (e.g. 9999)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter 4-digit PIN"
-                  placeholderTextColor="#778197"
-                  value={pin}
-                  onChangeText={setPin}
-                  keyboardType="numeric"
-                  maxLength={4}
-                  secureTextEntry
-                />
-              </>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              style={[styles.input, passwordError ? styles.inputErrorBorder : null]}
+              value={password}
+              onChangeText={(val) => {
+                setPassword(val);
+                setPasswordError('');
+              }}
+              secureTextEntry
+              placeholder="Enter your password"
+              placeholderTextColor="#68738D"
+            />
+            {!!passwordError && <Text style={styles.fieldErrorText}>{passwordError}</Text>}
+
+            <TouchableOpacity
+              style={styles.forgotBtn}
+              onPress={() => navigation.navigate('ForgotPasswordScreen')}
+            >
+              <Text style={styles.forgotText}>Forgot Password?</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.primaryBtn, loading && styles.btnDisabled]}
+              onPress={handleLogin}
+              activeOpacity={0.8}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.btnText}>
+                  {selectedRole === 'admin' ? 'Login as Admin ➔' : 'Login as User ➔'}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            {selectedRole === 'admin' && (
+              <View style={styles.registerContainer}>
+                <Text style={styles.registerSubText}>Don't have a restaurant account? </Text>
+                <TouchableOpacity onPress={() => navigation.navigate('RegisterScreen')}>
+                  <Text style={styles.registerText}>Register Restaurant</Text>
+                </TouchableOpacity>
+              </View>
             )}
-
-            {/* Submit Button */}
-            <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
-              <Text style={styles.loginBtnText}>
-                Login as {role === 'admin' ? 'Admin' : 'User'} ➔
-              </Text>
-            </TouchableOpacity>
           </View>
 
-          {/* Register Redirect */}
-          <View style={styles.footerRow}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('RegisterScreen')}>
-              <Text style={styles.registerLink}>Register Restaurant</Text>
-            </TouchableOpacity>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -164,50 +233,99 @@ export default function LoginScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#070E20' },
-  scrollContent: { padding: 20, justifyContent: 'center', flexGrow: 1 },
-  brandContainer: { alignItems: 'center', marginBottom: 30 },
-  logoIcon: { fontSize: 48 },
-  brandName: { color: '#FFFFFF', fontSize: 28, fontWeight: '800', marginTop: 8 },
-  brandTagline: { color: '#7D879D', fontSize: 13, marginTop: 4 },
-  label: { color: '#8D96AA', fontSize: 13, fontWeight: '600', marginBottom: 8, marginTop: 12 },
-  roleToggleRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
-  roleBtn: {
-    flex: 0.48,
-    backgroundColor: '#101A31',
+  scrollContent: { padding: 20, flexGrow: 1, justifyContent: 'center' },
+
+  toastContainer: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    right: 20,
+    zIndex: 9999,
     paddingVertical: 12,
-    borderRadius: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+  },
+  toastSuccess: { backgroundColor: '#1E3A2B', borderWidth: 1, borderColor: '#35D49B' },
+  toastError: { backgroundColor: '#3A1822', borderWidth: 1, borderColor: '#FF526A' },
+  toastText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700', textAlign: 'center' },
+
+  headerContainer: { marginBottom: 20 },
+  title: { color: '#FFFFFF', fontSize: 28, fontWeight: '800', marginBottom: 6 },
+  subtitle: { color: '#8D96AA', fontSize: 13, lineHeight: 19 },
+
+  /* Role Toggle Switcher */
+  roleToggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#0D162C',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 18,
     borderWidth: 1,
     borderColor: '#202D49',
   },
-  activeRoleBtn: { backgroundColor: '#FF7622', borderColor: '#FF7622' },
-  roleBtnText: { color: '#8D96AA', fontSize: 13, fontWeight: '700' },
-  activeRoleText: { color: '#FFFFFF' },
-  formCard: {
+  roleTab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  roleTabActive: {
+    backgroundColor: '#FF7622',
+  },
+  roleTabText: {
+    color: '#8D96AA',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  roleTabTextActive: {
+    color: '#FFFFFF',
+  },
+
+  card: {
     backgroundColor: '#0D162C',
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
     borderColor: '#202D49',
   },
+
+  label: { color: '#8D96AA', fontSize: 12, marginBottom: 6, fontWeight: '600', marginTop: 10 },
   input: {
     backgroundColor: '#070E20',
-    color: '#FFF',
-    padding: 12,
-    borderRadius: 8,
+    color: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#202D49',
-    marginBottom: 8,
+    fontSize: 14,
   },
-  loginBtn: {
+  inputErrorBorder: { borderColor: '#FF526A' },
+  fieldErrorText: { color: '#FF526A', fontSize: 12, marginTop: 5, fontWeight: '500' },
+
+  forgotBtn: { alignSelf: 'flex-end', marginTop: 10, marginBottom: 10 },
+  forgotText: { color: '#FF7622', fontWeight: '700', fontSize: 13 },
+
+  primaryBtn: {
     backgroundColor: '#FF7622',
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
+    marginTop: 10,
+  },
+  btnDisabled: { opacity: 0.6 },
+  btnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
+
+  registerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginTop: 20,
   },
-  loginBtnText: { color: '#FFF', fontSize: 15, fontWeight: 'bold' },
-  footerRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
-  footerText: { color: '#7D879D' },
-  registerLink: { color: '#FF7622', fontWeight: 'bold' },
+  registerSubText: { color: '#8D96AA', fontSize: 13 },
+  registerText: { color: '#FF7622', fontWeight: '700', fontSize: 13 },
 });
