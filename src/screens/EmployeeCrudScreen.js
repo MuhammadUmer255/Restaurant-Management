@@ -8,7 +8,6 @@ import {
   Modal,
   TextInput,
   Switch,
-  Alert,
   TouchableWithoutFeedback,
   StatusBar,
   Platform,
@@ -17,6 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import Toast from '../components/Toast'; 
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -38,9 +38,11 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
 
   const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
   const [modalVisible, setModalVisible] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [selectedRoleFilter, setSelectedRoleFilter] = useState('All');
   const [editingId, setEditingId] = useState(null);
-  
+  const [deletingEmployee, setDeletingEmployee] = useState(null);
+
   // Track expanded card for detail & button display
   const [expandedId, setExpandedId] = useState(null);
 
@@ -49,6 +51,21 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('Waiter');
   const [active, setActive] = useState(true);
+
+  // Toast State
+  const [toastConfig, setToastConfig] = useState({
+    visible: false,
+    message: '',
+    type: 'success',
+  });
+
+  const showToast = (message, type = 'success') => {
+    setToastConfig({ visible: true, message, type });
+  };
+
+  const hideToast = () => {
+    setToastConfig((prev) => ({ ...prev, visible: false }));
+  };
 
   if (!isAdmin) {
     return (
@@ -74,7 +91,7 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
 
   const toggleExpand = (id) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpandedId(prev => (prev === id ? null : id));
+    setExpandedId((prev) => (prev === id ? null : id));
   };
 
   const openAddModal = () => {
@@ -97,12 +114,13 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
 
   const handleSave = () => {
     if (!name.trim() || !email.trim()) {
-      Alert.alert('Validation Error', 'Please fill in all required fields.');
+      showToast('Please fill in all required fields.', 'error');
       return;
     }
 
     if (editingId) {
-      setEmployees(employees.map(e => (e.id === editingId ? { ...e, name, email, role, active } : e)));
+      setEmployees(employees.map((e) => (e.id === editingId ? { ...e, name, email, role, active } : e)));
+      showToast(`${name}'s profile updated!`, 'success');
     } else {
       const newEmp = {
         id: Date.now().toString(),
@@ -112,18 +130,27 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
         active,
       };
       setEmployees([...employees, newEmp]);
+      showToast(`${name} added to staff!`, 'success');
     }
     setModalVisible(false);
   };
 
-  const handleDelete = (id) => {
-    Alert.alert('Delete Staff', 'Are you sure you want to remove this employee?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => setEmployees(employees.filter(e => e.id !== id)) },
-    ]);
+  const openDeleteModal = (emp) => {
+    setDeletingEmployee(emp);
+    setDeleteConfirmVisible(true);
   };
 
-  const filteredEmployees = employees.filter(e => {
+  const confirmDelete = () => {
+    if (deletingEmployee) {
+      const empName = deletingEmployee.name;
+      setEmployees(employees.filter((e) => e.id !== deletingEmployee.id));
+      setDeleteConfirmVisible(false);
+      setDeletingEmployee(null);
+      showToast(`${empName} removed from staff!`, 'error');
+    }
+  };
+
+  const filteredEmployees = employees.filter((e) => {
     if (selectedRoleFilter === 'All') return true;
     return e.role.toLowerCase().split(' ').includes(selectedRoleFilter.toLowerCase());
   });
@@ -131,6 +158,14 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
+
+      {/* Top Floating Toast Notification */}
+      <Toast
+        visible={toastConfig.visible}
+        message={toastConfig.message}
+        type={toastConfig.type}
+        onDismiss={hideToast}
+      />
 
       {/* Header Section */}
       <View style={styles.header}>
@@ -150,7 +185,7 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
       {/* Role Filter Chips */}
       <View style={{ height: 40, marginBottom: 10 }}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {['All', 'Waiter', 'Chef', 'Manager'].map(filter => (
+          {['All', 'Waiter', 'Chef', 'Manager'].map((filter) => (
             <TouchableOpacity
               key={filter}
               style={[styles.filterChip, selectedRoleFilter === filter && styles.activeFilterChip]}
@@ -167,7 +202,7 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
 
       {/* Staff List */}
       <ScrollView contentContainerStyle={styles.listContainer} showsVerticalScrollIndicator={false}>
-        {filteredEmployees.map(emp => {
+        {filteredEmployees.map((emp) => {
           const isExpanded = expandedId === emp.id;
 
           return (
@@ -196,7 +231,7 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
               {isExpanded && (
                 <View style={styles.detailsContainer}>
                   <View style={styles.divider} />
-                  
+
                   <View style={styles.infoRow}>
                     <Text style={styles.infoLabel}>Status:</Text>
                     <Text style={[styles.infoValue, { color: emp.active ? '#35D49B' : '#FF526A' }]}>
@@ -213,7 +248,7 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
                     <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(emp)} activeOpacity={0.7}>
                       <Text style={styles.editText}>Edit</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(emp.id)} activeOpacity={0.7}>
+                    <TouchableOpacity style={styles.deleteBtn} onPress={() => openDeleteModal(emp)} activeOpacity={0.7}>
                       <Text style={styles.deleteText}>Delete</Text>
                     </TouchableOpacity>
                   </View>
@@ -223,6 +258,33 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
           );
         })}
       </ScrollView>
+
+      {/* Delete Confirmation Modal */}
+      <Modal visible={deleteConfirmVisible} animationType="fade" transparent onRequestClose={() => setDeleteConfirmVisible(false)}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setDeleteConfirmVisible(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Delete Staff Member</Text>
+              <Text style={{ color: '#7E879B', fontSize: 13, marginBottom: 16 }}>
+                Are you sure you want to remove <Text style={{ color: '#FFF', fontWeight: 'bold' }}>{deletingEmployee?.name}</Text> from employee management?
+              </Text>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.cancelModalBtn} onPress={() => setDeleteConfirmVisible(false)}>
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.saveModalBtn, { backgroundColor: '#FF526A' }]} onPress={confirmDelete} activeOpacity={0.8}>
+                  <Text style={styles.saveText}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Add / Edit Modal */}
       <Modal visible={modalVisible} animationType="fade" transparent onRequestClose={() => setModalVisible(false)}>
@@ -347,7 +409,7 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: 'rgba(255, 118, 34, 0.15)',
-    justify: 'center',
+    justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
@@ -369,7 +431,7 @@ const styles = StyleSheet.create({
   // Actions Row inside Expansion
   actionRow: {
     flexDirection: 'row',
-    justify: 'flex-end',
+    justifyContent: 'flex-end',
     marginTop: 10,
     gap: 10,
   },

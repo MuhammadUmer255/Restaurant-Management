@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,13 +9,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Animated,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
 import { validateEmail } from '../utils/authValidation';
+import Toast from '../components/Toast'; 
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
@@ -31,29 +31,19 @@ export default function LoginScreen({ navigation }) {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
 
-  // Toast State & Animation
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState('success');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  // Toast State
+  const [toastConfig, setToastConfig] = useState({
+    visible: false,
+    message: '',
+    type: 'success',
+  });
 
   const showToast = (message, type = 'success') => {
-    setToastMessage(message);
-    setToastType(type);
-    fadeAnim.stopAnimation();
+    setToastConfig({ visible: true, message, type });
+  };
 
-    Animated.sequence([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.delay(2500),
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start();
+  const hideToast = () => {
+    setToastConfig((prev) => ({ ...prev, visible: false }));
   };
 
   const handleLogin = () => {
@@ -81,7 +71,7 @@ export default function LoginScreen({ navigation }) {
     setTimeout(() => {
       setLoading(false);
       showToast(`Signed in as ${selectedRole === 'admin' ? 'Admin Manager' : 'Staff / User'}!`, 'success');
-      
+
       // Perform login in AuthContext with chosen role
       login({
         email: email,
@@ -95,28 +85,17 @@ export default function LoginScreen({ navigation }) {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
 
-      {/* Toast Banner */}
-      {!!toastMessage && (
-        <Animated.View
-          style={[
-            styles.toastContainer,
-            toastType === 'success' ? styles.toastSuccess : styles.toastError,
-            { opacity: fadeAnim },
-          ]}
-        >
-          <Ionicons
-            name={toastType === 'success' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
-            size={18}
-            color="#FFFFFF"
-            style={{ marginRight: 6 }}
-          />
-          <Text style={styles.toastText}>{toastMessage}</Text>
-        </Animated.View>
-      )}
+      {/* Top Floating Toast Notification */}
+      <Toast
+        visible={toastConfig.visible}
+        message={toastConfig.message}
+        type={toastConfig.type}
+        onDismiss={hideToast}
+      />
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          
+
           <View style={styles.headerContainer}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={styles.title}>Welcome Back!</Text>
@@ -258,24 +237,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#070E20' },
   scrollContent: { padding: 20, flexGrow: 1, justifyContent: 'center' },
 
-  toastContainer: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    right: 20,
-    zIndex: 9999,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 6,
-  },
-  toastSuccess: { backgroundColor: '#1E3A2B', borderWidth: 1, borderColor: '#35D49B' },
-  toastError: { backgroundColor: '#3A1822', borderWidth: 1, borderColor: '#FF526A' },
-  toastText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700', textAlign: 'center' },
-
   headerContainer: { marginBottom: 20 },
   title: { color: '#FFFFFF', fontSize: 28, fontWeight: '800', marginBottom: 6 },
   subtitle: { color: '#8D96AA', fontSize: 13, lineHeight: 19 },
@@ -348,7 +309,7 @@ const styles = StyleSheet.create({
 
   registerContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justify: 'center',
     alignItems: 'center',
     marginTop: 20,
   },

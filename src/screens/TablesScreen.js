@@ -10,37 +10,38 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import Toast from '../components/Toast'; 
 
 const INITIAL_TABLES = [
   { id: 'T-01', seats: 2, status: 'Available', zone: 'Indoor Main' },
-  { 
-    id: 'T-02', 
-    seats: 4, 
-    status: 'Occupied', 
-    customer: 'Julien', 
-    amount: '$148.50', 
-    zone: 'Indoor Main', 
-    order: [{ name: 'Truffle Wagyu Ribeye', price: 68.00 }, { name: 'Yuzu Basil Smash', price: 28.00 }] 
+  {
+    id: 'T-02',
+    seats: 4,
+    status: 'Occupied',
+    customer: 'Julien',
+    amount: '$148.50',
+    zone: 'Indoor Main',
+    order: [{ name: 'Truffle Wagyu Ribeye', price: 68.00 }, { name: 'Yuzu Basil Smash', price: 28.00 }]
   },
   { id: 'T-03', seats: 6, status: 'Reserved', customer: 'Dr. Raymond', time: '19:30', zone: 'Terrace' },
-  { 
-    id: 'T-04', 
-    seats: 2, 
-    status: 'Occupied', 
-    customer: 'Sarah', 
-    amount: '$95.00', 
-    zone: 'Indoor Main', 
-    order: [{ name: 'Hokkaido Scallops Crudo', price: 39.25 }] 
+  {
+    id: 'T-04',
+    seats: 2,
+    status: 'Occupied',
+    customer: 'Sarah',
+    amount: '$95.00',
+    zone: 'Indoor Main',
+    order: [{ name: 'Hokkaido Scallops Crudo', price: 39.25 }]
   },
   { id: 'T-05', seats: 4, status: 'Available', zone: 'Terrace' },
-  { 
-    id: 'VIP-1', 
-    seats: 8, 
-    status: 'Occupied', 
-    customer: 'VIP Guest', 
-    amount: '$390.00', 
-    zone: 'Terrace', 
-    order: [{ name: 'Chef Special Platter', price: 390.00 }] 
+  {
+    id: 'VIP-1',
+    seats: 8,
+    status: 'Occupied',
+    customer: 'VIP Guest',
+    amount: '$390.00',
+    zone: 'Terrace',
+    order: [{ name: 'Chef Special Platter', price: 390.00 }]
   },
 ];
 
@@ -51,6 +52,21 @@ export default function TablesScreen({ navigation }) {
   const [selectedTable, setSelectedTable] = useState('T-01');
   const [selectedZone, setSelectedZone] = useState('All');
 
+  // Toast State
+  const [toastConfig, setToastConfig] = useState({
+    visible: false,
+    message: '',
+    type: 'success',
+  });
+
+  const showToast = (message, type = 'success') => {
+    setToastConfig({ visible: true, message, type });
+  };
+
+  const hideToast = () => {
+    setToastConfig((prev) => ({ ...prev, visible: false }));
+  };
+
   // Dynamic Filtering
   const filteredTables = tables.filter(
     table => selectedZone === 'All' || table.zone === selectedZone
@@ -59,14 +75,14 @@ export default function TablesScreen({ navigation }) {
   const available = tables.filter(t => t.status === 'Available').length;
   const occupied = tables.filter(t => t.status === 'Occupied').length;
   const reserved = tables.filter(t => t.status === 'Reserved').length;
-  
+
   // Dynamic Seat & Occupancy Calculation
   const activeOccupiedSeats = tables
     .filter(t => t.status === 'Occupied')
     .reduce((sum, t) => sum + t.seats, 0);
 
-  const occupancyPercentage = tables.length > 0 
-    ? Math.round((occupied / tables.length) * 100) 
+  const occupancyPercentage = tables.length > 0
+    ? Math.round((occupied / tables.length) * 100)
     : 0;
 
   const selected = tables.find(table => table.id === selectedTable);
@@ -75,22 +91,39 @@ export default function TablesScreen({ navigation }) {
     if (!selected) return;
 
     if (selected.status !== 'Occupied' || !selected.order?.length) {
-      alert('Selected table has no active order to check out.');
+      showToast('Selected table has no active order to check out.', 'error');
       return;
     }
-    
-    navigation?.navigate('Billing', {
-      orderData: {
-        table: selected.id,
-        customer: selected.customer || 'Guest',
-        items: selected.order || [],
-      }
-    });
+
+    showToast(`Navigating to checkout for Table ${selected.id}...`, 'success');
+
+    setTimeout(() => {
+      navigation?.navigate('Billing', {
+        orderData: {
+          table: selected.id,
+          customer: selected.customer || 'Guest',
+          items: selected.order || [],
+        }
+      });
+    }, 400);
+  };
+
+  const handleAddOrder = () => {
+    if (!selected) return;
+    showToast(`Adding items to Table ${selected.id}...`, 'success');
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
+
+      {/* Top Floating Toast Notification */}
+      <Toast
+        visible={toastConfig.visible}
+        message={toastConfig.message}
+        type={toastConfig.type}
+        onDismiss={hideToast}
+      />
 
       {/* Header */}
       <View style={styles.header}>
@@ -101,7 +134,10 @@ export default function TablesScreen({ navigation }) {
           </View>
           <Text style={styles.location}>Restaurant Floor • Selected: {selectedTable}</Text>
         </View>
-        <TouchableOpacity activeOpacity={0.7}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => showToast('No new notifications.', 'info')}
+        >
           <Ionicons name="notifications-outline" size={20} color="#FF7622" />
         </TouchableOpacity>
       </View>
@@ -210,13 +246,17 @@ export default function TablesScreen({ navigation }) {
             )}
 
             <View style={styles.actionRow}>
-              <TouchableOpacity style={styles.actionButton} activeOpacity={0.7}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleAddOrder}
+                activeOpacity={0.7}
+              >
                 <Text style={styles.actionText}>+ Order</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
-                  styles.actionButton, 
+                  styles.actionButton,
                   styles.primaryButton,
                   selected.status !== 'Occupied' && styles.disabledButton
                 ]}

@@ -6,12 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   StatusBar,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import Toast from '../components/Toast'; 
 
 const PAYMENT_METHODS = ['Cash', 'Credit Card', 'QR / Wallet'];
 
@@ -30,6 +30,21 @@ export default function BillingScreen({ route, navigation }) {
   const [cashTendered, setCashTendered] = useState('');
   const [discountPercent, setDiscountPercent] = useState('0');
 
+  // Toast State
+  const [toastConfig, setToastConfig] = useState({
+    visible: false,
+    message: '',
+    type: 'success',
+  });
+
+  const showToast = (message, type = 'success') => {
+    setToastConfig({ visible: true, message, type });
+  };
+
+  const hideToast = () => {
+    setToastConfig((prev) => ({ ...prev, visible: false }));
+  };
+
   // Dynamic Auto-Calculations
   const subtotal = orderData.items.reduce((sum, item) => sum + (item.price || 0), 0);
   const discountVal = parseFloat(discountPercent) || 0;
@@ -40,27 +55,35 @@ export default function BillingScreen({ route, navigation }) {
   const cashGiven = parseFloat(cashTendered) || 0;
   const changeDue = cashGiven >= grandTotal ? cashGiven - grandTotal : 0;
 
+  const handlePrintReceipt = () => {
+    showToast('Receipt sent to printer!', 'success');
+  };
+
   const handleSettlePayment = () => {
     if (selectedMethod === 'Cash' && cashGiven < grandTotal && subtotal > 0) {
-      Alert.alert('Insufficient Cash', 'Cash given is less than the total bill amount.');
+      showToast('Insufficient cash! Given amount is less than total bill.', 'error');
       return;
     }
 
-    Alert.alert(
-      'Payment Completed!',
-      `Table ${orderData.table} ka bill ($${grandTotal.toFixed(2)}) successfully settle ho gaya hai. Table cleared!`,
-      [
-        {
-          text: 'Print Receipt & Finish',
-          onPress: () => navigation?.goBack(),
-        },
-      ]
-    );
+    showToast(`Payment of $${grandTotal.toFixed(2)} completed for Table ${orderData.table}!`, 'success');
+
+    // Auto navigate back after showing toast feedback
+    setTimeout(() => {
+      navigation?.goBack();
+    }, 1800);
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
+
+      {/* Top Floating Toast Notification */}
+      <Toast
+        visible={toastConfig.visible}
+        message={toastConfig.message}
+        type={toastConfig.type}
+        onDismiss={hideToast}
+      />
 
       {/* Header */}
       <View style={styles.header}>
@@ -83,7 +106,7 @@ export default function BillingScreen({ route, navigation }) {
 
         <TouchableOpacity
           style={styles.receiptBtn}
-          onPress={() => Alert.alert('Printing', 'Receipt sent to printer.')}
+          onPress={handlePrintReceipt}
           activeOpacity={0.8}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>

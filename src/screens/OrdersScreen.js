@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import Toast from '../components/Toast'; 
 
 const INITIAL_ORDERS = [
   {
@@ -58,6 +59,21 @@ export default function OrdersScreen({ navigation }) {
   const [orders, setOrders] = useState(INITIAL_ORDERS);
   const [selectedFilter, setSelectedFilter] = useState('All');
 
+  // Toast State
+  const [toastConfig, setToastConfig] = useState({
+    visible: false,
+    message: '',
+    type: 'success',
+  });
+
+  const showToast = (message, type = 'success') => {
+    setToastConfig({ visible: true, message, type });
+  };
+
+  const hideToast = () => {
+    setToastConfig((prev) => ({ ...prev, visible: false }));
+  };
+
   const filteredOrders = orders.filter(
     (order) => selectedFilter === 'All' || order.status === selectedFilter
   );
@@ -67,8 +83,17 @@ export default function OrdersScreen({ navigation }) {
       prev.map((o) => {
         if (o.id === orderId) {
           let nextStatus = o.status;
-          if (o.status === 'Pending') nextStatus = 'In Kitchen';
-          else if (o.status === 'In Kitchen') nextStatus = 'Served';
+          let toastMsg = '';
+
+          if (o.status === 'Pending') {
+            nextStatus = 'In Kitchen';
+            toastMsg = `Order ${o.id} sent to kitchen!`;
+          } else if (o.status === 'In Kitchen') {
+            nextStatus = 'Served';
+            toastMsg = `Order ${o.id} marked as served!`;
+          }
+
+          if (toastMsg) showToast(toastMsg, 'success');
           return { ...o, status: nextStatus };
         }
         return o;
@@ -77,12 +102,27 @@ export default function OrdersScreen({ navigation }) {
   };
 
   const handleCheckout = (order) => {
-    navigation?.navigate('Billing', { orderData: order });
+    showToast(`Navigating to checkout for ${order.id}...`, 'success');
+    setTimeout(() => {
+      navigation?.navigate('Billing', { orderData: order });
+    }, 400);
+  };
+
+  const handleNewOrder = () => {
+    showToast('New order creation workflow opened.', 'info');
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
+
+      {/* Top Floating Toast */}
+      <Toast
+        visible={toastConfig.visible}
+        message={toastConfig.message}
+        type={toastConfig.type}
+        onDismiss={hideToast}
+      />
 
       {/* Header */}
       <View style={styles.header}>
@@ -90,7 +130,7 @@ export default function OrdersScreen({ navigation }) {
           <Text style={styles.title}>Live Orders</Text>
           <Text style={styles.subtitle}>Active Kitchen & Service Orders</Text>
         </View>
-        <TouchableOpacity style={styles.newOrderBtn} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.newOrderBtn} activeOpacity={0.8} onPress={handleNewOrder}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="add-outline" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
             <Text style={styles.newOrderText}>New Order</Text>

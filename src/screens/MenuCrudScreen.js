@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
-  Alert,
   TouchableWithoutFeedback,
   FlatList,
   StatusBar,
@@ -15,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import Toast from '../components/Toast'; 
 
 const INITIAL_MENU = [
   { id: '1', name: 'Truffle Wagyu Ribeye', category: 'Mains', price: 68.0, available: true },
@@ -40,12 +40,28 @@ export default function MenuCrudScreen({ route, navigation }) {
   // Modal Visibility States
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
   const [formModalVisible, setFormModalVisible] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [currentAction, setCurrentAction] = useState(null); // 'EDIT' or 'ADD'
 
   // Form Input States
   const [dishName, setDishName] = useState('');
   const [category, setCategory] = useState('Mains');
   const [price, setPrice] = useState('');
+
+  // Toast State
+  const [toastConfig, setToastConfig] = useState({
+    visible: false,
+    message: '',
+    type: 'success',
+  });
+
+  const showToast = (message, type = 'success') => {
+    setToastConfig({ visible: true, message, type });
+  };
+
+  const hideToast = () => {
+    setToastConfig((prev) => ({ ...prev, visible: false }));
+  };
 
   // Filtering
   const filteredMenu = menuItems.filter(
@@ -74,21 +90,7 @@ export default function MenuCrudScreen({ route, navigation }) {
     setActionMenuVisible(false);
 
     if (action === 'DELETE') {
-      Alert.alert(
-        'Delete Dish',
-        `Are you sure you want to remove "${selectedItem?.name}" from the menu?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: () => {
-              setMenuItems((prev) => prev.filter((i) => i.id !== selectedItem?.id));
-              setSelectedItem(null);
-            },
-          },
-        ]
-      );
+      setDeleteConfirmVisible(true);
       return;
     }
 
@@ -114,16 +116,27 @@ export default function MenuCrudScreen({ route, navigation }) {
     setFormModalVisible(true);
   };
 
+  // Confirm Delete Handler
+  const confirmDeleteDish = () => {
+    if (selectedItem) {
+      const name = selectedItem.name;
+      setMenuItems((prev) => prev.filter((i) => i.id !== selectedItem.id));
+      setDeleteConfirmVisible(false);
+      setSelectedItem(null);
+      showToast(`"${name}" removed from the menu!`, 'error');
+    }
+  };
+
   // 4. Save handler for Form Modal
   const handleSaveItem = () => {
     if (!dishName.trim() || !price.trim()) {
-      Alert.alert('Validation Error', 'Please enter dish name and price.');
+      showToast('Please enter dish name and price.', 'error');
       return;
     }
 
     const parsedPrice = parseFloat(price);
     if (isNaN(parsedPrice) || parsedPrice <= 0) {
-      Alert.alert('Validation Error', 'Please enter a valid price.');
+      showToast('Please enter a valid price.', 'error');
       return;
     }
 
@@ -135,6 +148,7 @@ export default function MenuCrudScreen({ route, navigation }) {
             : item
         )
       );
+      showToast(`"${dishName}" updated successfully!`, 'success');
     } else {
       const newItem = {
         id: Date.now().toString(),
@@ -144,6 +158,7 @@ export default function MenuCrudScreen({ route, navigation }) {
         available: true,
       };
       setMenuItems((prev) => [newItem, ...prev]);
+      showToast(`"${dishName}" added to the menu!`, 'success');
     }
 
     setFormModalVisible(false);
@@ -152,15 +167,35 @@ export default function MenuCrudScreen({ route, navigation }) {
 
   const toggleAvailability = (id) => {
     setMenuItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, available: !item.available } : item
-      )
+      prev.map((item) => {
+        if (item.id === id) {
+          const nextState = !item.available;
+          showToast(
+            `"${item.name}" marked as ${nextState ? 'Available' : 'Sold Out'}`,
+            nextState ? 'success' : 'error'
+          );
+          return { ...item, available: nextState };
+        }
+        return item;
+      })
     );
+  };
+
+  const handleAddToCart = (item) => {
+    showToast(`Added "${item.name}" to cart!`, 'success');
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
+
+      {/* Top Floating Toast Notification */}
+      <Toast
+        visible={toastConfig.visible}
+        message={toastConfig.message}
+        type={toastConfig.type}
+        onDismiss={hideToast}
+      />
 
       {/* Top Navigation Bar */}
       <View style={styles.topBar}>
@@ -268,6 +303,7 @@ export default function MenuCrudScreen({ route, navigation }) {
               <TouchableOpacity
                 style={[styles.addCartBtn, !item.available && styles.disabledCartBtn]}
                 disabled={!item.available}
+                onPress={() => handleAddToCart(item)}
                 activeOpacity={0.8}
               >
                 <Text style={[styles.addCartText, !item.available && styles.disabledCartText]}>
@@ -304,7 +340,7 @@ export default function MenuCrudScreen({ route, navigation }) {
                   onPress={() => handleSelectAction('EDIT')}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.editOptionText}>  Edit Dish Details</Text>
+                  <Text style={styles.editOptionText}>Edit Dish Details</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -313,7 +349,7 @@ export default function MenuCrudScreen({ route, navigation }) {
                   activeOpacity={0.7}
                 >
                   <Text style={styles.toggleOptionText}>
-                    {selectedItem?.available ? '  Mark as Sold Out' : '✅  Mark as Available'}
+                    {selectedItem?.available ? 'Mark as Sold Out' : 'Mark as Available'}
                   </Text>
                 </TouchableOpacity>
 
@@ -322,7 +358,7 @@ export default function MenuCrudScreen({ route, navigation }) {
                   onPress={() => handleSelectAction('DELETE')}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.deleteOptionText}>  Delete Dish</Text>
+                  <Text style={styles.deleteOptionText}>Delete Dish</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -338,7 +374,49 @@ export default function MenuCrudScreen({ route, navigation }) {
         </Modal>
       )}
 
-      {/* STEP 2: Detail Form Modal */}
+      {/* STEP 2: Custom Delete Confirmation Modal */}
+      {isAdmin && (
+        <Modal
+          visible={deleteConfirmVisible}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setDeleteConfirmVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setDeleteConfirmVisible(false)}
+          >
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Delete Dish</Text>
+                <Text style={styles.modalSubtitle}>
+                  Are you sure you want to remove "{selectedItem?.name}" from the menu?
+                </Text>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity
+                    style={styles.cancelModalBtn}
+                    onPress={() => setDeleteConfirmVisible(false)}
+                  >
+                    <Text style={styles.cancelText}>Cancel</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.saveModalBtn, { backgroundColor: '#FF526A' }]}
+                    onPress={confirmDeleteDish}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.saveText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      {/* STEP 3: Detail Form Modal */}
       {isAdmin && (
         <Modal
           visible={formModalVisible}

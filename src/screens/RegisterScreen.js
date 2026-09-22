@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,11 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Animated,
   ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { validateEmail, validatePassword, getPasswordErrorMessage } from '../utils/authValidation';
+import Toast from '../components/Toast';
 
 export default function RegisterScreen({ navigation }) {
   // Mode: 'admin' (Register Restaurant) | 'user' (Register Staff / User)
@@ -36,27 +36,18 @@ export default function RegisterScreen({ navigation }) {
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
 
   // Floating Toast Notification
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState('success');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [toastConfig, setToastConfig] = useState({
+    visible: false,
+    message: '',
+    type: 'success',
+  });
 
   const showToast = (message, type = 'success') => {
-    setToastMessage(message);
-    setToastType(type);
+    setToastConfig({ visible: true, message, type });
+  };
 
-    Animated.sequence([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.delay(2500),
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start();
+  const hideToast = () => {
+    setToastConfig((prev) => ({ ...prev, visible: false }));
   };
 
   const handleRegister = () => {
@@ -118,24 +109,13 @@ export default function RegisterScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Toast Notification */}
-      {!!toastMessage && (
-        <Animated.View
-          style={[
-            styles.toastContainer,
-            toastType === 'success' ? styles.toastSuccess : styles.toastError,
-            { opacity: fadeAnim },
-          ]}
-        >
-          <Ionicons
-            name={toastType === 'success' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
-            size={18}
-            color="#FFFFFF"
-            style={{ marginRight: 6 }}
-          />
-          <Text style={styles.toastText}>{toastMessage}</Text>
-        </Animated.View>
-      )}
+      {/* Top Floating Toast */}
+      <Toast
+        visible={toastConfig.visible}
+        message={toastConfig.message}
+        type={toastConfig.type}
+        onDismiss={hideToast}
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -368,24 +348,6 @@ export default function RegisterScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#070E20' },
   scrollContent: { padding: 20, justifyContent: 'center', flexGrow: 1 },
-
-  toastContainer: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    right: 20,
-    zIndex: 9999,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 6,
-  },
-  toastSuccess: { backgroundColor: '#1E3A2B', borderWidth: 1, borderColor: '#35D49B' },
-  toastError: { backgroundColor: '#3A1822', borderWidth: 1, borderColor: '#FF526A' },
-  toastText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700', textAlign: 'center' },
 
   backBtn: { marginBottom: 16 },
   backText: { color: '#FF7622', fontWeight: '700', fontSize: 14 },

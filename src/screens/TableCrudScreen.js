@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
-  Alert,
   TouchableWithoutFeedback,
   FlatList,
   StatusBar,
@@ -15,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import Toast from '../components/Toast';
 
 const INITIAL_TABLES = [
   { id: '1', number: 'Table 1', seats: 2, status: 'Available', area: 'Indoor' },
@@ -40,12 +40,28 @@ export default function TableCrudScreen({ route, navigation }) {
   // Modal Visibilities
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
   const [formModalVisible, setFormModalVisible] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [currentAction, setCurrentAction] = useState(null); // 'EDIT' or 'ADD'
 
   // Input States
   const [tableNumber, setTableNumber] = useState('');
   const [seats, setSeats] = useState('');
   const [area, setArea] = useState('Indoor');
+
+  // Toast State
+  const [toastConfig, setToastConfig] = useState({
+    visible: false,
+    message: '',
+    type: 'success',
+  });
+
+  const showToast = (message, type = 'success') => {
+    setToastConfig({ visible: true, message, type });
+  };
+
+  const hideToast = () => {
+    setToastConfig((prev) => ({ ...prev, visible: false }));
+  };
 
   // Filter Tables
   const filteredTables = tables.filter(
@@ -74,21 +90,7 @@ export default function TableCrudScreen({ route, navigation }) {
     setActionMenuVisible(false);
 
     if (action === 'DELETE') {
-      Alert.alert(
-        'Delete Table',
-        `Are you sure you want to remove ${selectedTable?.number}?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: () => {
-              setTables((prev) => prev.filter((t) => t.id !== selectedTable?.id));
-              setSelectedTable(null);
-            },
-          },
-        ]
-      );
+      setDeleteConfirmVisible(true);
       return;
     }
 
@@ -114,16 +116,27 @@ export default function TableCrudScreen({ route, navigation }) {
     setFormModalVisible(true);
   };
 
+  // Confirm Delete Handler
+  const confirmDeleteTable = () => {
+    if (selectedTable) {
+      const tableName = selectedTable.number;
+      setTables((prev) => prev.filter((t) => t.id !== selectedTable.id));
+      setDeleteConfirmVisible(false);
+      setSelectedTable(null);
+      showToast(`${tableName} deleted successfully!`, 'error');
+    }
+  };
+
   // 4. Save Details in Form Modal
   const handleSaveTable = () => {
     if (!tableNumber.trim() || !seats.trim()) {
-      Alert.alert('Validation Error', 'Please enter table name/number and seats count.');
+      showToast('Please enter table name/number and seats count.', 'error');
       return;
     }
 
     const parsedSeats = parseInt(seats, 10);
     if (isNaN(parsedSeats) || parsedSeats <= 0) {
-      Alert.alert('Validation Error', 'Please enter a valid number of seats.');
+      showToast('Please enter a valid number of seats.', 'error');
       return;
     }
 
@@ -135,6 +148,7 @@ export default function TableCrudScreen({ route, navigation }) {
             : t
         )
       );
+      showToast(`${tableNumber} updated successfully!`, 'success');
     } else {
       const newTable = {
         id: Date.now().toString(),
@@ -144,6 +158,7 @@ export default function TableCrudScreen({ route, navigation }) {
         area,
       };
       setTables((prev) => [newTable, ...prev]);
+      showToast(`${tableNumber} added successfully!`, 'success');
     }
 
     setFormModalVisible(false);
@@ -156,7 +171,9 @@ export default function TableCrudScreen({ route, navigation }) {
       prev.map((t) => {
         if (t.id === id) {
           const nextIndex = (statuses.indexOf(t.status) + 1) % statuses.length;
-          return { ...t, status: statuses[nextIndex] };
+          const nextStatus = statuses[nextIndex];
+          showToast(`${t.number} status changed to ${nextStatus}`, 'success');
+          return { ...t, status: nextStatus };
         }
         return t;
       })
@@ -179,6 +196,14 @@ export default function TableCrudScreen({ route, navigation }) {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
+
+      {/* Top Floating Toast */}
+      <Toast
+        visible={toastConfig.visible}
+        message={toastConfig.message}
+        type={toastConfig.type}
+        onDismiss={hideToast}
+      />
 
       {/* Top Navigation Bar */}
       <View style={styles.topBar}>
@@ -278,7 +303,7 @@ export default function TableCrudScreen({ route, navigation }) {
                   </View>
                 </View>
                 <Text style={styles.areaText}>Area: {item.area}</Text>
-                <Text style={styles.seatsText}> {item.seats} Seats</Text>
+                <Text style={styles.seatsText}>{item.seats} Seats</Text>
               </View>
 
               {isAdmin && (
@@ -316,7 +341,7 @@ export default function TableCrudScreen({ route, navigation }) {
                   onPress={() => handleSelectAction('EDIT')}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.editOptionText}>  Edit Table Details</Text>
+                  <Text style={styles.editOptionText}>Edit Table Details</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -325,7 +350,7 @@ export default function TableCrudScreen({ route, navigation }) {
                   activeOpacity={0.7}
                 >
                   <Text style={styles.toggleOptionText}>
-                      Cycle Status ({selectedTable?.status})
+                    Cycle Status ({selectedTable?.status})
                   </Text>
                 </TouchableOpacity>
 
@@ -334,7 +359,7 @@ export default function TableCrudScreen({ route, navigation }) {
                   onPress={() => handleSelectAction('DELETE')}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.deleteOptionText}>  Delete Table</Text>
+                  <Text style={styles.deleteOptionText}>Delete Table</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -350,7 +375,49 @@ export default function TableCrudScreen({ route, navigation }) {
         </Modal>
       )}
 
-      {/* STEP 2: Detail Input Modal */}
+      {/* STEP 2: Custom Delete Confirmation Modal */}
+      {isAdmin && (
+        <Modal
+          visible={deleteConfirmVisible}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setDeleteConfirmVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setDeleteConfirmVisible(false)}
+          >
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Delete Table</Text>
+                <Text style={styles.modalSubtitle}>
+                  Are you sure you want to remove {selectedTable?.number}?
+                </Text>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity
+                    style={styles.cancelModalBtn}
+                    onPress={() => setDeleteConfirmVisible(false)}
+                  >
+                    <Text style={styles.cancelText}>Cancel</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.saveModalBtn, { backgroundColor: '#FF526A' }]}
+                    onPress={confirmDeleteTable}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.saveText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      {/* STEP 3: Detail Input Modal */}
       {isAdmin && (
         <Modal
           visible={formModalVisible}
