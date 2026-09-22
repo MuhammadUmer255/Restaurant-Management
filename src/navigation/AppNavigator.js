@@ -17,6 +17,7 @@ import DashboardScreen from '../screens/DashboardScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import TablesScreen from '../screens/TablesScreen';
 import BillingScreen from '../screens/BillingScreen';
+import ProfileScreen from '../screens/ProfileScreen'; 
 
 // Admin CRUD
 import EmployeeCrudScreen from '../screens/EmployeeCrudScreen';
@@ -57,6 +58,7 @@ const AppNavigator = () => {
             <Stack.Screen name="OrdersScreen" component={OrdersScreen} />
             <Stack.Screen name="TablesScreen" component={TablesScreen} />
             <Stack.Screen name="BillingScreen" component={BillingScreen} />
+            <Stack.Screen name="ProfileScreen" component={ProfileScreen} /> 
             <Stack.Screen name="EmployeeCrudScreen" component={EmployeeCrudScreen} />
             <Stack.Screen name="TableCrudScreen" component={TableCrudScreen} />
             <Stack.Screen name="MenuCrudScreen" component={MenuCrudScreen} />

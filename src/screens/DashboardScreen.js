@@ -52,10 +52,10 @@ const MOCK_MY_ORDERS = [
 
 export default function DashboardScreen({ route, navigation }) {
   const authContext = useAuth ? useAuth() : {};
-  const { userRole, logout } = authContext;
+  const { user, userRole } = authContext;
 
   // Route params take precedence with AuthContext fallback
-  const currentRole = route?.params?.role || userRole || 'user';
+  const currentRole = route?.params?.role || userRole || user?.role || 'user';
   const isAdmin = currentRole === 'admin';
 
   return (
@@ -63,7 +63,7 @@ export default function DashboardScreen({ route, navigation }) {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} translucent={false} />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* Header Section */}
+        {/* Header Section with Profile Button */}
         <View style={styles.headerRow}>
           <View style={{ flex: 1, paddingRight: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -78,12 +78,20 @@ export default function DashboardScreen({ route, navigation }) {
               Logged in as: <Text style={styles.roleBadge}>{isAdmin ? 'System Admin' : 'Staff Member'}</Text>
             </Text>
           </View>
+
+          {/* Top Right Profile Icon Button */}
           <TouchableOpacity 
-            style={styles.logoutBtn} 
-            onPress={() => logout?.()} 
-            activeOpacity={0.7}
+            style={styles.profileBtn} 
+            onPress={() => navigation?.navigate('ProfileScreen')} 
+            activeOpacity={0.8}
           >
-            <Text style={styles.logoutText}>Logout</Text>
+            <View style={styles.avatarCircle}>
+              <Ionicons 
+                name={isAdmin ? 'shield-checkmark' : 'person'} 
+                size={20} 
+                color={COLORS.orange} 
+              />
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -243,7 +251,7 @@ const styles = StyleSheet.create({
 
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justify: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
     marginTop: Platform.OS === 'android' ? 8 : 4,
@@ -251,15 +259,20 @@ const styles = StyleSheet.create({
   welcomeTitle: { color: COLORS.textPrimary, fontSize: 20, fontWeight: '700' },
   roleSubtext: { color: COLORS.textSecondary, fontSize: 12, marginTop: 4 },
   roleBadge: { color: COLORS.orange, fontWeight: '700' },
-  logoutBtn: {
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+  
+  profileBtn: {
+    padding: 2,
   },
-  logoutText: { color: COLORS.red, fontWeight: '600', fontSize: 12 },
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.orangeSoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: COLORS.orange,
+  },
 
   sectionHeading: {
     color: COLORS.textPrimary,
@@ -272,7 +285,7 @@ const styles = StyleSheet.create({
   metricsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justify: 'space-between',
   },
   metricCard: {
     width: '48%',
@@ -291,7 +304,7 @@ const styles = StyleSheet.create({
   actionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justify: 'space-between',
   },
   adminActionBtn: {
     width: '48%',
@@ -307,7 +320,7 @@ const styles = StyleSheet.create({
 
   listHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justify: 'space-between',
     alignItems: 'center',
     marginTop: 10,
   },
@@ -326,7 +339,7 @@ const styles = StyleSheet.create({
   orderTimeText: { color: COLORS.textSecondary, fontSize: 12 },
   orderMiddleRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justify: 'space-between',
     alignItems: 'center',
     marginTop: 6,
   },
@@ -337,7 +350,7 @@ const styles = StyleSheet.create({
   
   orderBottomRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justify: 'space-between',
     alignItems: 'center',
     marginTop: 10,
     paddingTop: 8,
