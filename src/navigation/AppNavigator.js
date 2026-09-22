@@ -3,6 +3,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 
+// Splash Screen
+import SplashScreen from '../screens/SplashScreen';
+
 // Auth Screens
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
@@ -28,15 +31,16 @@ const AppNavigator = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="LoginScreen"
+        initialRouteName="SplashScreen"
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: '#070E20' },
         }}
       >
         {!userToken ? (
-          // 🔴 Unauthenticated Stack
+          // 🔴 Unauthenticated Stack (Splash -> Login -> Register / Forgot)
           <>
+            <Stack.Screen name="SplashScreen" component={SplashScreen} />
             <Stack.Screen name="LoginScreen" component={LoginScreen} />
             <Stack.Screen name="RegisterScreen" component={RegisterScreen} />
             <Stack.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen} />
