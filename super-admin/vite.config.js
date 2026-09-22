@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { defineConfig } from 'vite';
 
+// LINT.IfChange(aistudio_media_plugin)
 function aistudioMediaPlugin() {
   return {
     name: 'vite-plugin-aistudio-media',
@@ -14,7 +15,12 @@ function aistudioMediaPlugin() {
           try {
             const decodedPath = decodeURIComponent(rawPath);
             const relativePath = decodedPath.replace(/^\//, '');
-            const aistudioDir = path.resolve(__dirname, 'public', 'assets', 'aistudio');
+            const aistudioDir = path.resolve(
+              __dirname,
+              'public',
+              'assets',
+              'aistudio',
+            );
             const filePath = path.resolve(__dirname, 'public', relativePath);
             if (
               filePath.startsWith(aistudioDir + path.sep) &&
@@ -39,12 +45,15 @@ function aistudioMediaPlugin() {
                 '.ogg': 'audio/ogg',
                 '.pdf': 'application/pdf',
               };
-              res.setHeader('Content-Type', mimeMap[ext] || 'application/octet-stream');
+              res.setHeader(
+                'Content-Type',
+                mimeMap[ext] || 'application/octet-stream',
+              );
               res.setHeader('Cache-Control', 'no-cache');
               fs.createReadStream(filePath).pipe(res);
               return;
             }
-          } catch (e) {
+          } catch {
             // Fall through if URI decoding or file access fails
           }
         }
@@ -53,6 +62,7 @@ function aistudioMediaPlugin() {
     },
   };
 }
+// LINT.ThenChange(//depot/google3/java/com/google/alkali/boq/makersuite/applet_dev_service/templates/initializers/react_theme/vite.config.ts:aistudio_media_plugin)
 
 export default defineConfig(() => {
   return {
@@ -67,10 +77,11 @@ export default defineConfig(() => {
       port: 3000,
       strictPort: true,
       allowedHosts: true,
+      // HMR is disabled in AI Studio via DISABLE_HMR env var.
+      // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
-      watch: process.env.DISABLE_HMR === 'true' ? null : {
-        ignored: ['**/.vs/**'],
-      },
+      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
+      watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
     preview: {
       host: '0.0.0.0',
