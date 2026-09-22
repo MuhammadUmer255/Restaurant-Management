@@ -14,328 +14,470 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../context/AuthContext';
 
 const INITIAL_TABLES = [
-  { id: '1', number: 'T-01', seats: 2, zone: 'Indoor Main', status: 'Available' },
-  { id: '2', number: 'T-02', seats: 4, zone: 'Indoor Main', status: 'Occupied' },
-  { id: '3', number: 'VIP-1', seats: 8, zone: 'Terrace', status: 'Reserved' },
+  { id: '1', number: 'Table 1', seats: 2, status: 'Available', area: 'Indoor' },
+  { id: '2', number: 'Table 2', seats: 4, status: 'Occupied', area: 'Indoor' },
+  { id: '3', number: 'Table 3', seats: 6, status: 'Reserved', area: 'Patio' },
+  { id: '4', number: 'Table 4', seats: 4, status: 'Available', area: 'VIP' },
 ];
 
-const ZONES = ['Indoor Main', 'Terrace', 'VIP Lounge'];
-const STATUSES = ['Available', 'Occupied', 'Reserved'];
+const AREAS = ['All', 'Indoor', 'Patio', 'VIP'];
 
-const TableCrudScreen = ({ navigation }) => {
+export default function TableCrudScreen({ route, navigation }) {
+  // Role Detection
+  const authContext = useAuth ? useAuth() : {};
+  const currentRole = route?.params?.role || authContext?.userRole || 'admin';
+  const isAdmin = currentRole === 'admin';
+
   const [tables, setTables] = useState(INITIAL_TABLES);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedZoneFilter, setSelectedZoneFilter] = useState('All');
-  const [editingId, setEditingId] = useState(null);
+  const [selectedArea, setSelectedArea] = useState('All');
 
-  // Form State
-  const [tableNum, setTableNum] = useState('');
-  const [seats, setSeats] = useState('4');
-  const [zone, setZone] = useState('Indoor Main');
-  const [status, setStatus] = useState('Available');
+  // Active Selected Item State
+  const [selectedTable, setSelectedTable] = useState(null);
 
+  // Modal Visibilities
+  const [actionMenuVisible, setActionMenuVisible] = useState(false);
+  const [formModalVisible, setFormModalVisible] = useState(false);
+  const [currentAction, setCurrentAction] = useState(null); // 'EDIT' or 'ADD'
+
+  // Input States
+  const [tableNumber, setTableNumber] = useState('');
+  const [seats, setSeats] = useState('');
+  const [area, setArea] = useState('Indoor');
+
+  // Filter Tables
+  const filteredTables = tables.filter(
+    (t) => selectedArea === 'All' || t.area === selectedArea
+  );
+
+  // 1. User taps a Table Card
+  const handleTablePress = (table) => {
+    if (!isAdmin) return;
+    setSelectedTable(table);
+    setActionMenuVisible(true);
+  };
+
+  // 2. User taps top "+ Add Table"
   const openAddModal = () => {
-    setEditingId(null);
-    setTableNum('');
-    setSeats('4');
-    setZone('Indoor Main');
-    setStatus('Available');
-    setModalVisible(true);
+    setSelectedTable(null);
+    setCurrentAction('ADD');
+    setTableNumber('');
+    setSeats('');
+    setArea('Indoor');
+    setFormModalVisible(true);
   };
 
-  const openEditModal = (table) => {
-    setEditingId(table.id);
-    setTableNum(table.number);
-    setSeats(table.seats.toString());
-    setZone(table.zone);
-    setStatus(table.status);
-    setModalVisible(true);
+  // 3. Action Sheet Choice
+  const handleSelectAction = (action) => {
+    setActionMenuVisible(false);
+
+    if (action === 'DELETE') {
+      Alert.alert(
+        'Delete Table',
+        `Are you sure you want to remove ${selectedTable?.number}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => {
+              setTables((prev) => prev.filter((t) => t.id !== selectedTable?.id));
+              setSelectedTable(null);
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    if (action === 'TOGGLE_STATUS') {
+      if (selectedTable) {
+        toggleStatus(selectedTable.id);
+      }
+      return;
+    }
+
+    setCurrentAction(action);
+
+    if (action === 'EDIT' && selectedTable) {
+      setTableNumber(selectedTable.number);
+      setSeats(selectedTable.seats.toString());
+      setArea(selectedTable.area);
+    } else {
+      setTableNumber('');
+      setSeats('');
+      setArea('Indoor');
+    }
+
+    setFormModalVisible(true);
   };
 
-  const handleSave = () => {
-    const trimmedNum = tableNum.trim();
+  // 4. Save Details in Form Modal
+  const handleSaveTable = () => {
+    if (!tableNumber.trim() || !seats.trim()) {
+      Alert.alert('Validation Error', 'Please enter table name/number and seats count.');
+      return;
+    }
+
     const parsedSeats = parseInt(seats, 10);
-
-    if (!trimmedNum) {
-      Alert.alert('Validation Error', 'Please enter a valid table number.');
-      return;
-    }
-
     if (isNaN(parsedSeats) || parsedSeats <= 0) {
-      Alert.alert('Validation Error', 'Please enter a valid seat capacity.');
+      Alert.alert('Validation Error', 'Please enter a valid number of seats.');
       return;
     }
 
-    if (editingId) {
-      setTables(
-        tables.map((t) =>
-          t.id === editingId
-            ? { ...t, number: trimmedNum, seats: parsedSeats, zone, status }
+    if (currentAction === 'EDIT' && selectedTable) {
+      setTables((prev) =>
+        prev.map((t) =>
+          t.id === selectedTable.id
+            ? { ...t, number: tableNumber, seats: parsedSeats, area }
             : t
         )
       );
     } else {
       const newTable = {
         id: Date.now().toString(),
-        number: trimmedNum,
+        number: tableNumber,
         seats: parsedSeats,
-        zone,
-        status,
+        status: 'Available',
+        area,
       };
-      setTables([...tables, newTable]);
+      setTables((prev) => [newTable, ...prev]);
     }
-    setModalVisible(false);
+
+    setFormModalVisible(false);
+    setSelectedTable(null);
   };
 
-  const handleDelete = (id) => {
-    Alert.alert('Delete Table', 'Are you sure you want to remove this table?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => setTables(tables.filter((t) => t.id !== id)),
-      },
-    ]);
+  const toggleStatus = (id) => {
+    const statuses = ['Available', 'Occupied', 'Reserved'];
+    setTables((prev) =>
+      prev.map((t) => {
+        if (t.id === id) {
+          const nextIndex = (statuses.indexOf(t.status) + 1) % statuses.length;
+          return { ...t, status: statuses[nextIndex] };
+        }
+        return t;
+      })
+    );
   };
 
-  const filteredTables = tables.filter((t) => {
-    if (selectedZoneFilter === 'All') return true;
-    return t.zone === selectedZoneFilter;
-  });
+  const getStatusStyle = (status) => {
+    switch (status) {
+      case 'Available':
+        return { bg: 'rgba(53, 212, 155, 0.15)', text: '#35D49B', border: 'rgba(53, 212, 155, 0.3)' };
+      case 'Occupied':
+        return { bg: 'rgba(255, 82, 106, 0.15)', text: '#FF526A', border: 'rgba(255, 82, 106, 0.3)' };
+      case 'Reserved':
+        return { bg: 'rgba(245, 174, 34, 0.15)', text: '#F5AE22', border: 'rgba(245, 174, 34, 0.3)' };
+      default:
+        return { bg: '#101A31', text: '#7E879B', border: '#202D49' };
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation?.goBack()}
+      {/* Top Navigation Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity 
+          onPress={() => navigation?.goBack()} 
           style={styles.backBtn}
           activeOpacity={0.7}
         >
           <Text style={styles.backText}>‹ Back</Text>
         </TouchableOpacity>
+        
+        <View style={styles.roleBadgeContainer}>
+          <Text style={styles.roleBadgeText}>
+            {isAdmin ? '⚡ Admin Mode' : ' Customer View'}
+          </Text>
+        </View>
+      </View>
 
-        <View style={styles.titleWrapper}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={{ flex: 1 }}>
           <Text style={styles.title} numberOfLines={1}>
             Table Management
           </Text>
+          <Text style={styles.subtitle}>
+            {filteredTables.length} tables listed
+          </Text>
         </View>
 
-        <TouchableOpacity style={styles.addBtn} onPress={openAddModal} activeOpacity={0.8}>
-          <Text style={styles.addBtnText}>+ Add Table</Text>
-        </TouchableOpacity>
+        {isAdmin && (
+          <TouchableOpacity 
+            style={styles.addBtn} 
+            onPress={openAddModal}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.addBtnText}>+ Add Table</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Zone Filter Chips */}
-      <View style={{ height: 40, marginBottom: 8 }}>
-        <ScrollView
-          horizontal
+      {/* Horizontal Filter Chips */}
+      <View style={{ height: 42, marginBottom: 8 }}>
+        <ScrollView 
+          horizontal 
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
+          contentContainerStyle={styles.categoryRow}
         >
-          {['All', ...ZONES].map((z) => (
+          {AREAS.map((cat) => (
             <TouchableOpacity
-              key={z}
+              key={cat}
               style={[
-                styles.filterChip,
-                selectedZoneFilter === z && styles.activeFilterChip,
+                styles.categoryChip,
+                selectedArea === cat && styles.activeCategoryChip,
               ]}
-              onPress={() => setSelectedZoneFilter(z)}
+              onPress={() => setSelectedArea(cat)}
               activeOpacity={0.7}
             >
               <Text
                 style={[
-                  styles.filterChipText,
-                  selectedZoneFilter === z && styles.activeFilterChipText,
+                  styles.categoryChipText,
+                  selectedArea === cat && styles.activeCategoryChipText,
                 ]}
               >
-                {z}
+                {cat}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
 
-      {/* Grid Layout using FlatList */}
+      {/* Tables List */}
       <FlatList
         data={filteredTables}
         keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.columnWrapper}
-        contentContainerStyle={styles.gridContainer}
+        contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item: t }) => (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.tableName} numberOfLines={1}>
-                {t.number}
-              </Text>
-              <View style={styles.seatsBadge}>
-                <Text style={styles.seatsBadgeText}>{t.seats} Seats</Text>
-              </View>
-            </View>
-
-            <Text style={styles.zoneText} numberOfLines={1}>
-              Zone: {t.zone}
-            </Text>
-
-            <Text
-              style={[
-                styles.statusText,
-                {
-                  color:
-                    t.status === 'Available'
-                      ? '#35D49B'
-                      : t.status === 'Occupied'
-                        ? '#FF526A'
-                        : '#F5AE22',
-                },
-              ]}
+        renderItem={({ item }) => {
+          const statusColors = getStatusStyle(item.status);
+          return (
+            <TouchableOpacity
+              style={styles.card}
+              activeOpacity={isAdmin ? 0.7 : 1}
+              onPress={() => handleTablePress(item)}
             >
-              ● {t.status}
-            </Text>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <View style={styles.nameRow}>
+                  <Text style={styles.tableName}>{item.number}</Text>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      { backgroundColor: statusColors.bg, borderColor: statusColors.border },
+                    ]}
+                  >
+                    <Text style={[styles.statusBadgeText, { color: statusColors.text }]}>
+                      {item.status}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.areaText}>Area: {item.area}</Text>
+                <Text style={styles.seatsText}> {item.seats} Seats</Text>
+              </View>
 
-            <View style={styles.actionRow}>
-              <TouchableOpacity
-                style={styles.editBtn}
-                onPress={() => openEditModal(t)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.editText}>Edit</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.deleteBtn}
-                onPress={() => handleDelete(t.id)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.deleteText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+              {isAdmin && (
+                <View style={styles.tapIndicator}>
+                  <Text style={styles.tapIndicatorText}>Manage ›</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        }}
       />
 
-      {/* Add / Edit Modal */}
-      <Modal
-        visible={modalVisible}
-        animationType="fade"
-        transparent
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setModalVisible(false)}
+      {/* STEP 1: Action Context Sheet Modal */}
+      {isAdmin && (
+        <Modal
+          visible={actionMenuVisible}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setActionMenuVisible(false)}
         >
-          <TouchableWithoutFeedback>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>
-                {editingId ? 'Edit Table' : 'Add New Table'}
-              </Text>
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setActionMenuVisible(false)}
+          >
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle} numberOfLines={1}>
+                  {selectedTable?.number || 'Table Options'}
+                </Text>
+                <Text style={styles.modalSubtitle}>Select an action to perform:</Text>
 
-              <Text style={styles.label}>Table Number / Code</Text>
-              <TextInput
-                style={styles.input}
-                value={tableNum}
-                onChangeText={setTableNum}
-                placeholder="e.g. T-15 or VIP-2"
-                placeholderTextColor="#778197"
-              />
-
-              <Text style={styles.label}>Seat Capacity</Text>
-              <TextInput
-                style={styles.input}
-                value={seats}
-                onChangeText={setSeats}
-                keyboardType="numeric"
-                placeholder="4"
-                placeholderTextColor="#778197"
-              />
-
-              <Text style={styles.label}>Zone Area</Text>
-              <View style={styles.chipRow}>
-                {ZONES.map((z) => (
-                  <TouchableOpacity
-                    key={z}
-                    style={[styles.chip, zone === z && styles.activeChip]}
-                    onPress={() => setZone(z)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.chipText, zone === z && styles.activeChipText]}>
-                      {z}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.label}>Initial Status</Text>
-              <View style={styles.chipRow}>
-                {STATUSES.map((s) => (
-                  <TouchableOpacity
-                    key={s}
-                    style={[styles.chip, status === s && styles.activeChip]}
-                    onPress={() => setStatus(s)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.chipText, status === s && styles.activeChipText]}>
-                      {s}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={styles.modalActions}>
                 <TouchableOpacity
-                  style={styles.cancelModalBtn}
-                  onPress={() => setModalVisible(false)}
+                  style={[styles.sheetOptionBtn, styles.editOptionBtn]}
+                  onPress={() => handleSelectAction('EDIT')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.editOptionText}>  Edit Table Details</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.sheetOptionBtn, styles.toggleOptionBtn]}
+                  onPress={() => handleSelectAction('TOGGLE_STATUS')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.toggleOptionText}>
+                      Cycle Status ({selectedTable?.status})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.sheetOptionBtn, styles.deleteOptionBtn]}
+                  onPress={() => handleSelectAction('DELETE')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.deleteOptionText}>  Delete Table</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.cancelSheetBtn}
+                  onPress={() => setActionMenuVisible(false)}
+                  activeOpacity={0.7}
                 >
                   <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.saveModalBtn}
-                  onPress={handleSave}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.saveText}>Save</Text>
-                </TouchableOpacity>
               </View>
-            </View>
-          </TouchableWithoutFeedback>
-        </TouchableOpacity>
-      </Modal>
+            </TouchableWithoutFeedback>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      {/* STEP 2: Detail Input Modal */}
+      {isAdmin && (
+        <Modal
+          visible={formModalVisible}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setFormModalVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setFormModalVisible(false)}
+          >
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>
+                  {currentAction === 'EDIT' ? 'Edit Table' : 'Add New Table'}
+                </Text>
+
+                <Text style={styles.label}>Table Name / Number</Text>
+                <TextInput
+                  style={styles.input}
+                  value={tableNumber}
+                  onChangeText={setTableNumber}
+                  placeholder="e.g. Table 5"
+                  placeholderTextColor="#778197"
+                />
+
+                <Text style={styles.label}>Capacity (Seats)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={seats}
+                  onChangeText={setSeats}
+                  keyboardType="numeric"
+                  placeholder="4"
+                  placeholderTextColor="#778197"
+                />
+
+                <Text style={styles.label}>Area Section</Text>
+                <View style={styles.chipRow}>
+                  {AREAS.filter((a) => a !== 'All').map((a) => (
+                    <TouchableOpacity
+                      key={a}
+                      style={[
+                        styles.chip,
+                        area === a && styles.activeChip,
+                      ]}
+                      onPress={() => setArea(a)}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          area === a && styles.activeChipText,
+                        ]}
+                      >
+                        {a}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <View style={styles.modalActions}>
+                  <TouchableOpacity
+                    style={styles.cancelModalBtn}
+                    onPress={() => setFormModalVisible(false)}
+                  >
+                    <Text style={styles.cancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.saveModalBtn}
+                    onPress={handleSaveTable}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.saveText}>Save Table</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#070E20' },
 
-  // Header UI
-  header: {
+  topBar: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: Platform.OS === 'android' ? 8 : 0,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#131D35',
+    paddingBottom: 4,
   },
   backBtn: { paddingVertical: 4, paddingRight: 8 },
   backText: { color: '#FF7622', fontSize: 16, fontWeight: '600' },
-  titleWrapper: { flex: 1, alignItems: 'center', marginHorizontal: 8 },
-  title: { color: '#FFF', fontSize: 17, fontWeight: '700' },
-  addBtn: { backgroundColor: '#FF7622', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
+  roleBadgeContainer: {
+    backgroundColor: '#101A31',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#202D49',
+  },
+  roleBadgeText: { color: '#FF7622', fontSize: 11, fontWeight: '700' },
+
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  title: { color: '#FFF', fontSize: 22, fontWeight: '700' },
+  subtitle: { color: '#7E879B', fontSize: 12, marginTop: 2, fontWeight: '500' },
+  addBtn: {
+    backgroundColor: '#FF7622',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
   addBtnText: { color: '#FFF', fontWeight: '700', fontSize: 12 },
 
-  // Zone Filters Bar
-  filterRow: { paddingHorizontal: 16, alignItems: 'center' },
-  filterChip: {
+  categoryRow: { paddingHorizontal: 16, alignItems: 'center' },
+  categoryChip: {
     backgroundColor: '#101A31',
     paddingHorizontal: 14,
     paddingVertical: 6,
@@ -344,61 +486,87 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#202D49',
   },
-  activeFilterChip: { backgroundColor: '#FF7622', borderColor: '#FF7622' },
-  filterChipText: { color: '#8D96AA', fontSize: 12, fontWeight: '500' },
-  activeFilterChipText: { color: '#FFF', fontWeight: '700' },
+  activeCategoryChip: { backgroundColor: '#FF7622', borderColor: '#FF7622' },
+  categoryChipText: { color: '#8D96AA', fontSize: 12, fontWeight: '600' },
+  activeCategoryChipText: { color: '#FFF', fontWeight: '700' },
 
-  // Table Grid View
-  gridContainer: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 30 },
-  columnWrapper: { justifyContent: 'space-between' },
+  listContainer: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 30 },
   card: {
     backgroundColor: '#0D162C',
-    width: '48%',
-    padding: 14,
     borderRadius: 14,
+    padding: 14,
     marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#202D49',
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  tableName: { color: '#FFF', fontSize: 16, fontWeight: '700', flex: 1, marginRight: 4 },
-  seatsBadge: {
-    backgroundColor: '#070E20',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
+  nameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+  tableName: { color: '#FFF', fontSize: 16, fontWeight: '700', marginRight: 8 },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#202D49',
   },
-  seatsBadgeText: { color: '#8D96AA', fontSize: 10, fontWeight: '600' },
-  zoneText: { color: '#7E879B', fontSize: 11, marginTop: 8 },
-  statusText: { fontSize: 12, fontWeight: '700', marginTop: 4 },
+  statusBadgeText: { fontSize: 10, fontWeight: '700' },
+  areaText: { color: '#7E879B', fontSize: 12, marginTop: 4 },
+  seatsText: { color: '#35D49B', fontSize: 14, fontWeight: '700', marginTop: 4 },
 
-  // Action Buttons
-  actionRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 14, alignItems: 'center' },
-  editBtn: {
-    backgroundColor: 'rgba(53, 212, 155, 0.12)',
+  tapIndicator: {
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 6,
+    backgroundColor: '#101A31',
     borderWidth: 1,
+    borderColor: '#202D49',
+  },
+  tapIndicatorText: { color: '#FF7622', fontSize: 11, fontWeight: '600' },
+
+  sheetOptionBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+  },
+  editOptionBtn: {
+    backgroundColor: 'rgba(53, 212, 155, 0.12)',
     borderColor: 'rgba(53, 212, 155, 0.3)',
   },
-  editText: { color: '#35D49B', fontSize: 11, fontWeight: '700' },
-  deleteBtn: {
+  editOptionText: { color: '#35D49B', fontWeight: '700', fontSize: 13 },
+  toggleOptionBtn: {
+    backgroundColor: 'rgba(245, 174, 34, 0.12)',
+    borderColor: 'rgba(245, 174, 34, 0.3)',
+  },
+  toggleOptionText: { color: '#F5AE22', fontWeight: '700', fontSize: 13 },
+  deleteOptionBtn: {
     backgroundColor: 'rgba(255, 82, 106, 0.12)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    borderWidth: 1,
     borderColor: 'rgba(255, 82, 106, 0.3)',
   },
-  deleteText: { color: '#FF526A', fontSize: 11, fontWeight: '700' },
+  deleteOptionText: { color: '#FF526A', fontWeight: '700', fontSize: 13 },
+  cancelSheetBtn: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginTop: 4,
+  },
 
-  // Modal Dialog UI
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#0D162C', padding: 20, borderRadius: 16, borderWidth: 1, borderColor: '#202D49' },
-  modalTitle: { color: '#FFF', fontSize: 18, fontWeight: '700', marginBottom: 14 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#0D162C',
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#202D49',
+  },
+  modalTitle: { color: '#FFF', fontSize: 18, fontWeight: '700', marginBottom: 4 },
+  modalSubtitle: { color: '#7E879B', fontSize: 12, marginBottom: 16 },
   label: { color: '#8D96AA', fontSize: 12, marginTop: 12, marginBottom: 6, fontWeight: '600' },
   input: {
     backgroundColor: '#070E20',
@@ -426,8 +594,11 @@ const styles = StyleSheet.create({
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 22, alignItems: 'center' },
   cancelModalBtn: { paddingHorizontal: 16, paddingVertical: 10, marginRight: 8 },
   cancelText: { color: '#8D96AA', fontWeight: '600' },
-  saveModalBtn: { backgroundColor: '#FF7622', paddingHorizontal: 22, paddingVertical: 10, borderRadius: 8 },
+  saveModalBtn: {
+    backgroundColor: '#FF7622',
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
   saveText: { color: '#FFF', fontWeight: '700' },
 });
-
-export default TableCrudScreen;
