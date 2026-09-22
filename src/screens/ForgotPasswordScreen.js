@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { validateEmail, validatePassword, getPasswordErrorMessage } from '../utils/authValidation';
 
 export default function ForgotPasswordScreen({ navigation }) {
@@ -217,7 +218,6 @@ export default function ForgotPasswordScreen({ navigation }) {
         setLoading(false);
         showToast('Your password has been reset successfully.', 'success');
         navigationTimeoutRef.current = setTimeout(() => {
-          // 👈 Fixed Route Name here: 'Login' -> 'LoginScreen'
           navigation.navigate('LoginScreen');
         }, 1800);
       }, 1000);
@@ -237,10 +237,13 @@ export default function ForgotPasswordScreen({ navigation }) {
             { opacity: fadeAnim },
           ]}
         >
-          <Text style={styles.toastText}>
-            {toastType === 'success' ? '✓ ' : '⚠️ '}
-            {toastMessage}
-          </Text>
+          <Ionicons
+            name={toastType === 'success' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
+            size={18}
+            color="#FFFFFF"
+            style={{ marginRight: 6 }}
+          />
+          <Text style={styles.toastText}>{toastMessage}</Text>
         </Animated.View>
       )}
 
@@ -254,18 +257,23 @@ export default function ForgotPasswordScreen({ navigation }) {
               if (step > 1) {
                 setStep(step - 1);
               } else {
-                // 👈 Fixed Back Navigation to LoginScreen
                 navigation.navigate('LoginScreen');
               }
             }}
           >
-            <Text style={styles.backText}>‹ {step > 1 ? 'Previous Step' : 'Back to Login'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="chevron-back-outline" size={16} color="#FF7622" />
+              <Text style={styles.backText}>{step > 1 ? 'Previous Step' : 'Back to Login'}</Text>
+            </View>
           </TouchableOpacity>
 
           {/* STEP 1: EMAIL INPUT */}
           {step === 1 && (
             <View style={styles.card}>
-              <Text style={styles.title}>Forgot Password? 🔐</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                <Ionicons name="lock-closed-outline" size={24} color="#FF7622" style={{ marginRight: 8 }} />
+                <Text style={styles.title}>Forgot Password?</Text>
+              </View>
               <Text style={styles.subtitle}>
                 Enter your registered email address below. We'll send you a 6-digit verification code.
               </Text>
@@ -303,7 +311,10 @@ export default function ForgotPasswordScreen({ navigation }) {
           {/* STEP 2: OTP INPUT */}
           {step === 2 && (
             <View style={styles.card}>
-              <Text style={styles.title}>Enter OTP Code 💬</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                <Ionicons name="mail-open-outline" size={24} color="#FF7622" style={{ marginRight: 8 }} />
+                <Text style={styles.title}>Enter OTP Code</Text>
+              </View>
               <Text style={styles.subtitle}>
                 Enter the 6-digit verification code sent to <Text style={styles.highlightText}>{email}</Text>.
               </Text>
@@ -354,7 +365,10 @@ export default function ForgotPasswordScreen({ navigation }) {
           {/* STEP 3: RESET PASSWORD */}
           {step === 3 && (
             <View style={styles.card}>
-              <Text style={styles.title}>Reset Password 🔑</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                <Ionicons name="key-outline" size={24} color="#FF7622" style={{ marginRight: 8 }} />
+                <Text style={styles.title}>Reset Password</Text>
+              </View>
               <Text style={styles.subtitle}>Create a new strong password for your account.</Text>
 
               <Text style={styles.label}>New Password</Text>
@@ -442,8 +456,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#202D49',
   },
-  title: { color: '#FFFFFF', fontSize: 22, fontWeight: '800', marginBottom: 6 },
-  subtitle: { color: '#8D96AA', fontSize: 13, marginBottom: 20, lineHeight: 18 },
+  title: { color: '#FFFFFF', fontSize: 22, fontWeight: '800' },
+  subtitle: { color: '#8D96AA', fontSize: 13, marginBottom: 20, lineHeight: 18, marginTop: 4 },
   highlightText: { color: '#FFFFFF', fontWeight: '700' },
 
   label: { color: '#8D96AA', fontSize: 12, marginBottom: 6, fontWeight: '600', marginTop: 10 },

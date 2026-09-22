@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const INITIAL_TABLES = [
   { id: 'T-01', seats: 2, status: 'Available', zone: 'Indoor Main' },
@@ -94,11 +95,14 @@ export default function TablesScreen({ navigation }) {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.logo}>🍴 GourmetOS</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="restaurant-outline" size={18} color="#FF7622" style={{ marginRight: 6 }} />
+            <Text style={styles.logo}>GourmetOS</Text>
+          </View>
           <Text style={styles.location}>Restaurant Floor • Selected: {selectedTable}</Text>
         </View>
         <TouchableOpacity activeOpacity={0.7}>
-          <Text style={styles.notification}>♧</Text>
+          <Ionicons name="notifications-outline" size={20} color="#FF7622" />
         </TouchableOpacity>
       </View>
 
@@ -165,7 +169,7 @@ export default function TablesScreen({ navigation }) {
                 <StatusBadge status={table.status} />
               </View>
 
-              <Text style={styles.seats}>♟ {table.seats} Seats</Text>
+              <Text style={styles.seats}>{table.seats} Seats</Text>
 
               {table.customer && (
                 <Text style={styles.customer} numberOfLines={1}>{table.customer}</Text>
@@ -174,7 +178,10 @@ export default function TablesScreen({ navigation }) {
                 <Text style={styles.amount}>{table.amount}</Text>
               )}
               {table.time && (
-                <Text style={styles.time}>⏱ {table.time}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                  <Ionicons name="time-outline" size={12} color="#F5AE22" style={{ marginRight: 3 }} />
+                  <Text style={styles.time}>{table.time}</Text>
+                </View>
               )}
             </TouchableOpacity>
           ))}
@@ -268,7 +275,6 @@ const styles = StyleSheet.create({
   },
   logo: { color: '#FFFFFF', fontSize: 22, fontWeight: '800' },
   location: { color: '#7D879D', fontSize: 12, marginTop: 4 },
-  notification: { color: '#FF7622', fontSize: 22 },
   floorTabs: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 12 },
   tab: {
     backgroundColor: '#101A31',
@@ -316,7 +322,7 @@ const styles = StyleSheet.create({
   seats: { color: '#858FA5', marginTop: 10, fontSize: 12 },
   customer: { color: '#D9DDE7', marginTop: 8, fontWeight: '600', fontSize: 13 },
   amount: { color: '#35D49B', marginTop: 4, fontWeight: '700', fontSize: 13 },
-  time: { color: '#F5AE22', marginTop: 4, fontSize: 12 },
+  time: { color: '#F5AE22', fontSize: 12 },
   selectedPanel: {
     backgroundColor: '#0D162C',
     borderRadius: 18,

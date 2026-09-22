@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
 
 const COLORS = {
@@ -65,9 +66,14 @@ export default function DashboardScreen({ route, navigation }) {
         {/* Header Section */}
         <View style={styles.headerRow}>
           <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text style={styles.welcomeTitle} numberOfLines={1}>
-              {isAdmin ? 'Admin Dashboard ⚡' : 'My Shift Dashboard'}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.welcomeTitle} numberOfLines={1}>
+                {isAdmin ? 'Admin Dashboard' : 'My Shift Dashboard'}
+              </Text>
+              {isAdmin && (
+                <Ionicons name="flash" size={18} color={COLORS.orange} style={{ marginLeft: 6 }} />
+              )}
+            </View>
             <Text style={styles.roleSubtext}>
               Logged in as: <Text style={styles.roleBadge}>{isAdmin ? 'System Admin' : 'Staff Member'}</Text>
             </Text>
@@ -90,7 +96,7 @@ export default function DashboardScreen({ route, navigation }) {
               <View style={styles.metricCard}>
                 <Text style={styles.metricLabel}>Total Revenue</Text>
                 <Text style={styles.metricValue}>{MOCK_ADMIN_METRICS.totalRevenue}</Text>
-                <Text style={styles.metricTrend}>↗ +12.5% vs yesterday</Text>
+                <Text style={styles.metricTrend}>+12.5% vs yesterday</Text>
               </View>
               <View style={styles.metricCard}>
                 <Text style={styles.metricLabel}>Total Orders</Text>
@@ -119,7 +125,7 @@ export default function DashboardScreen({ route, navigation }) {
                 onPress={() => navigation?.navigate('Orders')}
                 activeOpacity={0.7}
               >
-                <Text style={styles.actionIcon}>➕</Text>
+                <Ionicons name="add-circle-outline" size={24} color={COLORS.orange} style={{ marginBottom: 6 }} />
                 <Text style={styles.actionBtnText}>Add New Order</Text>
               </TouchableOpacity>
 
@@ -128,7 +134,7 @@ export default function DashboardScreen({ route, navigation }) {
                 onPress={() => navigation?.navigate('Tables')}
                 activeOpacity={0.7}
               >
-                <Text style={styles.actionIcon}>✏️</Text>
+                <Ionicons name="create-outline" size={24} color={COLORS.orange} style={{ marginBottom: 6 }} />
                 <Text style={styles.actionBtnText}>Edit Floor Plan</Text>
               </TouchableOpacity>
 
@@ -137,7 +143,7 @@ export default function DashboardScreen({ route, navigation }) {
                 onPress={() => navigation?.navigate('Menu')}
                 activeOpacity={0.7}
               >
-                <Text style={styles.actionIcon}>🍔</Text>
+                <Ionicons name="restaurant-outline" size={24} color={COLORS.orange} style={{ marginBottom: 6 }} />
                 <Text style={styles.actionBtnText}>Update Menu</Text>
               </TouchableOpacity>
 
@@ -146,7 +152,7 @@ export default function DashboardScreen({ route, navigation }) {
                 onPress={() => navigation?.navigate('Orders')}
                 activeOpacity={0.7}
               >
-                <Text style={styles.actionIcon}>🗑️</Text>
+                <Ionicons name="trash-outline" size={24} color={COLORS.red} style={{ marginBottom: 6 }} />
                 <Text style={[styles.actionBtnText, { color: COLORS.red }]}>Void / Cancel</Text>
               </TouchableOpacity>
             </View>
@@ -186,7 +192,10 @@ export default function DashboardScreen({ route, navigation }) {
             {/* User Orders Details */}
             <View style={styles.listHeaderRow}>
               <Text style={styles.sectionHeading}>My Served Orders Detail</Text>
-              <Text style={styles.readOnlyTag}>🔒 Read-Only View</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="lock-closed-outline" size={12} color={COLORS.textSecondary} style={{ marginRight: 4 }} />
+                <Text style={styles.readOnlyTag}>Read-Only View</Text>
+              </View>
             </View>
 
             {MOCK_MY_ORDERS.map((item) => (
@@ -279,7 +288,6 @@ const styles = StyleSheet.create({
   metricTrend: { color: COLORS.green, fontSize: 11, marginTop: 4 },
   metricSub: { color: COLORS.textSecondary, fontSize: 11, marginTop: 4 },
 
-  // Fixed `justify` to `justifyContent`
   actionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -295,7 +303,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  actionIcon: { fontSize: 20, marginBottom: 6 },
   actionBtnText: { color: COLORS.textPrimary, fontSize: 13, fontWeight: '600' },
 
   listHeaderRow: {
@@ -328,7 +335,6 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 11, fontWeight: '700' },
   orderItemsText: { color: COLORS.textSecondary, fontSize: 13, marginTop: 8 },
   
-  // Fixed `justify` to `justifyContent`
   orderBottomRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

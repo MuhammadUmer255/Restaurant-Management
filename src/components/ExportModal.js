@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, Modal, TouchableOpacity, Alert } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const ExportModal = ({ visible, onClose, timeFilter = 'Day' }) => {
   const [downloading, setDownloading] = useState(false);
@@ -25,7 +26,10 @@ const ExportModal = ({ visible, onClose, timeFilter = 'Day' }) => {
             onPress={() => handleDownload('PDF')}
             disabled={downloading}
           >
-            <Text style={styles.optionText}>📄 Export as PDF Document</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="document-text-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.optionText}>Export as PDF Document</Text>
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -33,7 +37,10 @@ const ExportModal = ({ visible, onClose, timeFilter = 'Day' }) => {
             onPress={() => handleDownload('Excel (.xlsx)')}
             disabled={downloading}
           >
-            <Text style={styles.optionText}>📊 Export as Excel Sheet (.xlsx)</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="stats-chart-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.optionText}>Export as Excel Sheet (.xlsx)</Text>
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.cancelBtn} onPress={onClose} disabled={downloading}>

@@ -1,19 +1,18 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 export default function Toast({ visible, message, type = 'success', onDismiss }) {
   const translateY = useRef(new Animated.Value(-100)).current;
 
   useEffect(() => {
     if (visible) {
-      // Slide down into view
       Animated.spring(translateY, {
         toValue: 20,
         useNativeDriver: true,
         friction: 6,
       }).start();
 
-      // Auto dismiss after 3 seconds
       const timer = setTimeout(() => {
         hideToast();
       }, 3000);
@@ -46,7 +45,12 @@ export default function Toast({ visible, message, type = 'success', onDismiss })
         { transform: [{ translateY }] },
       ]}
     >
-      <Text style={styles.icon}>{isSuccess ? '✓' : '⚠️'}</Text>
+      <Ionicons
+        name={isSuccess ? 'checkmark-circle-outline' : 'alert-circle-outline'}
+        size={20}
+        color="#FFFFFF"
+        style={{ marginRight: 8 }}
+      />
       <Text style={styles.message}>{message}</Text>
     </Animated.View>
   );
@@ -79,11 +83,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#3B1822',
     borderWidth: 1,
     borderColor: '#FF526A',
-  },
-  icon: {
-    fontSize: 16,
-    marginRight: 10,
-    color: '#FFFFFF',
   },
   message: {
     color: '#FFFFFF',

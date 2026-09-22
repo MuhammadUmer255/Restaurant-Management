@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
 import { validateEmail } from '../utils/authValidation';
 
@@ -103,10 +104,13 @@ export default function LoginScreen({ navigation }) {
             { opacity: fadeAnim },
           ]}
         >
-          <Text style={styles.toastText}>
-            {toastType === 'success' ? '✓ ' : '⚠️ '}
-            {toastMessage}
-          </Text>
+          <Ionicons
+            name={toastType === 'success' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
+            size={18}
+            color="#FFFFFF"
+            style={{ marginRight: 6 }}
+          />
+          <Text style={styles.toastText}>{toastMessage}</Text>
         </Animated.View>
       )}
 
@@ -114,7 +118,9 @@ export default function LoginScreen({ navigation }) {
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           
           <View style={styles.headerContainer}>
-            <Text style={styles.title}>Welcome Back! 👋</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.title}>Welcome Back!</Text>
+            </View>
             <Text style={styles.subtitle}>
               {selectedRole === 'admin'
                 ? 'Sign in as Admin Manager for full access, CRUD & management.'
@@ -132,14 +138,22 @@ export default function LoginScreen({ navigation }) {
               onPress={() => setSelectedRole('user')}
               activeOpacity={0.8}
             >
-              <Text
-                style={[
-                  styles.roleTabText,
-                  selectedRole === 'user' && styles.roleTabTextActive,
-                ]}
-              >
-                👤 Sign in as User
-              </Text>
+              <View style={styles.tabContentRow}>
+                <Ionicons
+                  name="person-outline"
+                  size={15}
+                  color={selectedRole === 'user' ? '#FFFFFF' : '#8D96AA'}
+                  style={{ marginRight: 6 }}
+                />
+                <Text
+                  style={[
+                    styles.roleTabText,
+                    selectedRole === 'user' && styles.roleTabTextActive,
+                  ]}
+                >
+                  Sign in as User
+                </Text>
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -150,14 +164,22 @@ export default function LoginScreen({ navigation }) {
               onPress={() => setSelectedRole('admin')}
               activeOpacity={0.8}
             >
-              <Text
-                style={[
-                  styles.roleTabText,
-                  selectedRole === 'admin' && styles.roleTabTextActive,
-                ]}
-              >
-                👑 Sign in as Admin
-              </Text>
+              <View style={styles.tabContentRow}>
+                <Ionicons
+                  name="shield-checkmark-outline"
+                  size={15}
+                  color={selectedRole === 'admin' ? '#FFFFFF' : '#8D96AA'}
+                  style={{ marginRight: 6 }}
+                />
+                <Text
+                  style={[
+                    styles.roleTabText,
+                    selectedRole === 'admin' && styles.roleTabTextActive,
+                  ]}
+                >
+                  Sign in as Admin
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
 
@@ -209,20 +231,21 @@ export default function LoginScreen({ navigation }) {
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
-                <Text style={styles.btnText}>
-                  {selectedRole === 'admin' ? 'Login as Admin ➔' : 'Login as User ➔'}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.btnText}>
+                    {selectedRole === 'admin' ? 'Login as Admin' : 'Login as User'}
+                  </Text>
+                  <Ionicons name="arrow-forward-outline" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                </View>
               )}
             </TouchableOpacity>
 
-            {selectedRole === 'admin' && (
-              <View style={styles.registerContainer}>
-                <Text style={styles.registerSubText}>Don't have a restaurant account? </Text>
-                <TouchableOpacity onPress={() => navigation.navigate('RegisterScreen')}>
-                  <Text style={styles.registerText}>Register Restaurant</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            <View style={styles.registerContainer}>
+              <Text style={styles.registerSubText}>Don't have an account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('RegisterScreen')}>
+                <Text style={styles.registerText}>Register Now</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
         </ScrollView>
@@ -257,7 +280,6 @@ const styles = StyleSheet.create({
   title: { color: '#FFFFFF', fontSize: 28, fontWeight: '800', marginBottom: 6 },
   subtitle: { color: '#8D96AA', fontSize: 13, lineHeight: 19 },
 
-  /* Role Toggle Switcher */
   roleToggleContainer: {
     flexDirection: 'row',
     backgroundColor: '#0D162C',
@@ -275,6 +297,10 @@ const styles = StyleSheet.create({
   },
   roleTabActive: {
     backgroundColor: '#FF7622',
+  },
+  tabContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   roleTabText: {
     color: '#8D96AA',

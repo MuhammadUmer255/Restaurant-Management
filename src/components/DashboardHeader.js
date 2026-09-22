@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const DashboardHeader = ({
   title = "Admin Dashboard",
@@ -26,7 +27,10 @@ const DashboardHeader = ({
           onPress={onExportPress}
           activeOpacity={0.8}
         >
-          <Text style={styles.exportText}>📥 Export</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="download-outline" size={14} color="#FF6B00" style={{ marginRight: 4 }} />
+            <Text style={styles.exportText}>Export</Text>
+          </View>
         </TouchableOpacity>
       )}
     </View>

@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const PAYMENT_METHODS = ['Cash', 'Credit Card', 'QR / Wallet'];
 
@@ -46,7 +47,7 @@ export default function BillingScreen({ route, navigation }) {
     }
 
     Alert.alert(
-      'Payment Completed! 💳',
+      'Payment Completed!',
       `Table ${orderData.table} ka bill ($${grandTotal.toFixed(2)}) successfully settle ho gaya hai. Table cleared!`,
       [
         {
@@ -68,7 +69,10 @@ export default function BillingScreen({ route, navigation }) {
           style={styles.backBtn}
           activeOpacity={0.7}
         >
-          <Text style={styles.backText}>‹ Back</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="chevron-back-outline" size={16} color="#FF7622" />
+            <Text style={styles.backText}>Back</Text>
+          </View>
         </TouchableOpacity>
 
         <View style={styles.headerTitleContainer}>
@@ -82,7 +86,10 @@ export default function BillingScreen({ route, navigation }) {
           onPress={() => Alert.alert('Printing', 'Receipt sent to printer.')}
           activeOpacity={0.8}
         >
-          <Text style={styles.receiptText}>🖨️ Print</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="print-outline" size={14} color="#FF7622" style={{ marginRight: 4 }} />
+            <Text style={styles.receiptText}>Print</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -191,7 +198,10 @@ export default function BillingScreen({ route, navigation }) {
 
         {/* Settle Action */}
         <TouchableOpacity style={styles.settleBtn} onPress={handleSettlePayment} activeOpacity={0.8}>
-          <Text style={styles.settleBtnText}>Complete & Clear Table ➔</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={styles.settleBtnText}>Complete & Clear Table</Text>
+            <Ionicons name="arrow-forward-outline" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
+          </View>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -249,7 +259,7 @@ const styles = StyleSheet.create({
   // Calculations
   calcRow: {
     flexDirection: 'row',
-    justify: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginVertical: 6,
   },
@@ -269,7 +279,7 @@ const styles = StyleSheet.create({
   },
   totalRow: {
     flexDirection: 'row',
-    justify: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 4,
   },

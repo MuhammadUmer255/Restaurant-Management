@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const INITIAL_ORDERS = [
   {
@@ -90,7 +91,10 @@ export default function OrdersScreen({ navigation }) {
           <Text style={styles.subtitle}>Active Kitchen & Service Orders</Text>
         </View>
         <TouchableOpacity style={styles.newOrderBtn} activeOpacity={0.8}>
-          <Text style={styles.newOrderText}>+ New Order</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="add-outline" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
+            <Text style={styles.newOrderText}>New Order</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -136,7 +140,10 @@ export default function OrdersScreen({ navigation }) {
               </View>
               <View style={styles.statusBadgeWrapper}>
                 <StatusBadge status={item.status} />
-                <Text style={styles.timeText}>⏱ {item.time}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                  <Ionicons name="time-outline" size={11} color="#8A94A6" style={{ marginRight: 3 }} />
+                  <Text style={styles.timeText}>{item.time}</Text>
+                </View>
               </View>
             </View>
 
@@ -170,7 +177,10 @@ export default function OrdersScreen({ navigation }) {
                   onPress={() => handleCheckout(item)}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.checkoutBtnText}>Proceed to Pay 💳</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={styles.checkoutBtnText}>Proceed to Pay</Text>
+                    <Ionicons name="card-outline" size={14} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                  </View>
                 </TouchableOpacity>
               ) : item.status !== 'Completed' ? (
                 <TouchableOpacity
@@ -185,7 +195,10 @@ export default function OrdersScreen({ navigation }) {
                 </TouchableOpacity>
               ) : (
                 <View style={styles.completedBadge}>
-                  <Text style={styles.completedText}>✓ Order Paid</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="checkmark-circle-outline" size={14} color="#35D49B" style={{ marginRight: 4 }} />
+                    <Text style={styles.completedText}>Order Paid</Text>
+                  </View>
                 </View>
               )}
             </View>
@@ -261,7 +274,7 @@ const styles = StyleSheet.create({
   statusBadgeWrapper: { alignItems: 'flex-end' },
   badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   badgeText: { fontSize: 11, fontWeight: '700' },
-  timeText: { color: '#7E879B', fontSize: 10, marginTop: 4 },
+  timeText: { color: '#7E879B', fontSize: 10 },
   divider: { height: 1, backgroundColor: '#202D49', marginVertical: 12 },
   itemsList: { marginVertical: 2 },
   itemRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 4 },

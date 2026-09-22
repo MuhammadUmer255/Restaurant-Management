@@ -1,6 +1,6 @@
 import React from 'react';
-import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import { useAuth } from '../context/AuthContext';
 
@@ -45,8 +45,8 @@ const MainTabNavigator = ({ route }) => {
         component={MenuCrudScreen}
         initialParams={{ role: rawRole }}
         options={{
-          tabBarIcon: ({ color }) => (
-            <Text style={{ color, fontSize: 18 }}>🍔</Text>
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="restaurant-outline" color={color} size={size || 20} />
           ),
         }}
       />
@@ -57,8 +57,8 @@ const MainTabNavigator = ({ route }) => {
         component={isAdmin ? TableCrudScreen : TablesScreen}
         initialParams={{ role: rawRole }}
         options={{
-          tabBarIcon: ({ color }) => (
-            <Text style={{ color, fontSize: 18 }}>🪑</Text>
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="grid-outline" color={color} size={size || 20} />
           ),
         }}
       />
@@ -69,8 +69,8 @@ const MainTabNavigator = ({ route }) => {
         component={OrdersScreen}
         initialParams={{ role: rawRole }}
         options={{
-          tabBarIcon: ({ color }) => (
-            <Text style={{ color, fontSize: 18 }}>📋</Text>
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="receipt-outline" color={color} size={size || 20} />
           ),
         }}
       />
@@ -81,8 +81,8 @@ const MainTabNavigator = ({ route }) => {
         component={BillingScreen}
         initialParams={{ role: rawRole }}
         options={{
-          tabBarIcon: ({ color }) => (
-            <Text style={{ color, fontSize: 18 }}>💳</Text>
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="card-outline" color={color} size={size || 20} />
           ),
         }}
       />
@@ -94,8 +94,8 @@ const MainTabNavigator = ({ route }) => {
           component={EmployeeCrudScreen}
           initialParams={{ role: rawRole }}
           options={{
-            tabBarIcon: ({ color }) => (
-              <Text style={{ color, fontSize: 18 }}>👥</Text>
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="people-outline" color={color} size={size || 20} />
             ),
           }}
         />
@@ -107,8 +107,8 @@ const MainTabNavigator = ({ route }) => {
         component={DashboardScreen}
         initialParams={{ role: rawRole }}
         options={{
-          tabBarIcon: ({ color }) => (
-            <Text style={{ color, fontSize: 18 }}>📊</Text>
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="stats-chart-outline" color={color} size={size || 20} />
           ),
         }}
       />
