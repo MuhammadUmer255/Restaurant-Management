@@ -1,362 +1,381 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  View,
-  Text,
   StyleSheet,
+  Text,
+  View,
   ScrollView,
   TouchableOpacity,
   StatusBar,
   Platform,
+  RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
 
-const COLORS = {
-  bg: '#070E20',
-  card: '#131a2b',
-  cardBorder: '#26314a',
-  orange: '#ff7a1a',
-  orangeSoft: 'rgba(255,122,26,0.12)',
-  green: '#2ecc71',
-  greenSoft: 'rgba(46,204,113,0.12)',
-  blue: '#3498db',
-  blueSoft: 'rgba(52,152,219,0.12)',
-  red: '#e74c3c',
-  textPrimary: '#ffffff',
-  textSecondary: '#8b93a7',
-  inputBg: '#0f1626',
-};
-
-// Dummy Data for Demonstration
-const MOCK_ADMIN_METRICS = {
-  totalRevenue: '$14,280.00',
-  totalOrders: 142,
-  activeTables: '18/22',
-  kitchenQueue: 8,
-};
-
-const MOCK_USER_METRICS = {
-  myTodayOrders: 24,
-  myTodaySales: '$680.50',
-  myActiveTickets: 3,
-  shiftHours: '5.5 hrs',
-};
-
-const MOCK_MY_ORDERS = [
-  { id: '#ORD-1092', table: 'Table 04', items: '2x Wagyu Burger, 1x Coke', total: '$48.50', status: 'Completed', time: '18:45' },
-  { id: '#ORD-1088', table: 'Table 12', items: '1x Truffle Pasta, 2x Latte', total: '$36.00', status: 'In Kitchen', time: '18:30' },
-  { id: '#ORD-1081', table: 'Table 02', items: '1x Caesar Salad, 1x Iced Tea', total: '$22.00', status: 'Completed', time: '17:55' },
-  { id: '#ORD-1075', table: 'Takeaway', items: '3x Club Sandwich, 3x Mocha', total: '$54.00', status: 'Completed', time: '17:10' },
-];
-
-export default function DashboardScreen({ route, navigation }) {
+const DashboardScreen = ({ route, navigation }) => {
+  const { width } = useWindowDimensions();
   const authContext = useAuth ? useAuth() : {};
-  const { user, userRole } = authContext;
+  const user = authContext?.user || {};
 
-  // Route params take precedence with AuthContext fallback
-  const currentRole = route?.params?.role || userRole || user?.role || 'user';
-  const isAdmin = currentRole === 'admin';
+  // Case-Insensitive Role Resolution
+  const rawRole = route?.params?.role || user?.role || 'admin';
+  const currentRole = String(rawRole).trim().toUpperCase();
+  const isAdmin = currentRole === 'ADMIN';
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Responsive Grid Logic
+  const isTablet = width > 600;
+  const statCardWidth = isTablet ? '23%' : '48%';
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 800);
+  };
+
+  const handleNavigate = (screenName, params = {}) => {
+    if (navigation?.navigate) {
+      navigation.navigate(screenName, { role: currentRole, ...params });
+    }
+  };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} translucent={false} />
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
 
-        {/* Header Section with Profile Button */}
-        <View style={styles.headerRow}>
-          <View style={{ flex: 1, paddingRight: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.welcomeTitle} numberOfLines={1}>
-                {isAdmin ? 'Admin Dashboard' : 'My Shift Dashboard'}
-              </Text>
-              {isAdmin && (
-                <Ionicons name="flash" size={18} color={COLORS.orange} style={{ marginLeft: 6 }} />
-              )}
+      {/* Header with Working Profile Button */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.greetingText}>Welcome Back </Text>
+          <Text style={styles.userName}>{user?.name || user?.username || 'u7121200'}</Text>
+        </View>
+
+        <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={styles.profileBadge}
+            onPress={() => handleNavigate('ProfileScreen')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.roleBadgeText}>{currentRole}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.profileIconBtn}
+            onPress={() => handleNavigate('ProfileScreen')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="person-circle-outline" size={32} color="#FF7622" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF7622" />
+        }
+      >
+        {/* KPI Metrics */}
+        <Text style={styles.sectionTitle}>Today's Metrics</Text>
+        <View style={styles.statsGrid}>
+          <View style={[styles.statCard, { width: statCardWidth }]}>
+            <View style={[styles.iconCircle, { backgroundColor: 'rgba(255, 118, 34, 0.15)' }]}>
+              <Ionicons name="cash-outline" size={20} color="#FF7622" />
             </View>
-            <Text style={styles.roleSubtext}>
-              Logged in as: <Text style={styles.roleBadge}>{isAdmin ? 'System Admin' : 'Staff Member'}</Text>
-            </Text>
+            <Text style={styles.statValue}>$1,280.50</Text>
+            <Text style={styles.statLabel}>Total Sales</Text>
           </View>
 
-          {/* Top Right Profile Icon Button */}
-          <TouchableOpacity 
-            style={styles.profileBtn} 
-            onPress={() => navigation?.navigate('ProfileScreen')} 
+          <View style={[styles.statCard, { width: statCardWidth }]}>
+            <View style={[styles.iconCircle, { backgroundColor: 'rgba(53, 212, 155, 0.15)' }]}>
+              <Ionicons name="receipt-outline" size={20} color="#35D49B" />
+            </View>
+            <Text style={styles.statValue}>42</Text>
+            <Text style={styles.statLabel}>Orders Placed</Text>
+          </View>
+
+          <View style={[styles.statCard, { width: statCardWidth }]}>
+            <View style={[styles.iconCircle, { backgroundColor: 'rgba(74, 144, 226, 0.15)' }]}>
+              <Ionicons name="restaurant-outline" size={20} color="#4A90E2" />
+            </View>
+            <Text style={styles.statValue}>8 / 12</Text>
+            <Text style={styles.statLabel}>Tables Occupied</Text>
+          </View>
+
+          <View style={[styles.statCard, { width: statCardWidth }]}>
+            <View style={[styles.iconCircle, { backgroundColor: 'rgba(255, 183, 3, 0.15)' }]}>
+              <Ionicons name="people-outline" size={20} color="#FFB703" />
+            </View>
+            <Text style={styles.statValue}>6 Staff</Text>
+            <Text style={styles.statLabel}>On Shift</Text>
+          </View>
+        </View>
+
+        {/* Management & Quick Actions */}
+        <Text style={styles.sectionTitle}>Management & Actions</Text>
+        <View style={styles.actionsGrid}>
+          {/* Active Orders */}
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => handleNavigate('Orders')}
             activeOpacity={0.8}
           >
-            <View style={styles.avatarCircle}>
-              <Ionicons 
-                name={isAdmin ? 'shield-checkmark' : 'person'} 
-                size={20} 
-                color={COLORS.orange} 
-              />
+            <View style={styles.cardHeader}>
+              <Ionicons name="receipt" size={24} color="#FF7622" />
+              <Ionicons name="chevron-forward" size={18} color="#7E879B" />
             </View>
+            <Text style={styles.actionTitle}>Active Orders</Text>
+            <Text style={styles.actionSub}>View & process live kitchen orders</Text>
+          </TouchableOpacity>
+
+          {/* Floor Plan */}
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => handleNavigate('Tables')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.cardHeader}>
+              <Ionicons name="grid" size={24} color="#35D49B" />
+              <Ionicons name="chevron-forward" size={18} color="#7E879B" />
+            </View>
+            <Text style={styles.actionTitle}>Floor Plan</Text>
+            <Text style={styles.actionSub}>Seating, status & table assignments</Text>
+          </TouchableOpacity>
+
+          {/* Menu Items */}
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => handleNavigate('Menu')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.cardHeader}>
+              <Ionicons name="restaurant" size={24} color="#4A90E2" />
+              <Ionicons name="chevron-forward" size={18} color="#7E879B" />
+            </View>
+            <Text style={styles.actionTitle}>Menu Items</Text>
+            <Text style={styles.actionSub}>Update dishes, pricing & availability</Text>
+          </TouchableOpacity>
+
+          {/* Manage Staff (Always Visible for Admin Role) */}
+          {isAdmin && (
+            <TouchableOpacity
+              style={[styles.actionCard, styles.adminHighlightCard]}
+              onPress={() => handleNavigate('EmployeeCrud')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.cardHeader}>
+                <Ionicons name="people" size={24} color="#FF7622" />
+                <Ionicons name="chevron-forward" size={18} color="#FF7622" />
+              </View>
+              <Text style={styles.actionTitle}>Manage Staff</Text>
+              <Text style={styles.actionSub}>Add, update or modify employee roles</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Billing */}
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => handleNavigate('Billing')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.cardHeader}>
+              <Ionicons name="card" size={24} color="#9B51E0" />
+              <Ionicons name="chevron-forward" size={18} color="#7E879B" />
+            </View>
+            <Text style={styles.actionTitle}>Billing & Checkout</Text>
+            <Text style={styles.actionSub}>Print bills & record payment methods</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ----------------- ADMIN DASHBOARD VIEW ----------------- */}
-        {isAdmin ? (
-          <>
-            {/* Admin Overview Cards */}
-            <Text style={styles.sectionHeading}>Overall Restaurant Performance</Text>
-            <View style={styles.metricsGrid}>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Total Revenue</Text>
-                <Text style={styles.metricValue}>{MOCK_ADMIN_METRICS.totalRevenue}</Text>
-                <Text style={styles.metricTrend}>+12.5% vs yesterday</Text>
-              </View>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Total Orders</Text>
-                <Text style={styles.metricValue}>{MOCK_ADMIN_METRICS.totalOrders}</Text>
-                <Text style={styles.metricSub}>Across 22 Tables</Text>
-              </View>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Active Tables</Text>
-                <Text style={styles.metricValue}>{MOCK_ADMIN_METRICS.activeTables}</Text>
-                <Text style={styles.metricSub}>81% Occupancy</Text>
-              </View>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Kitchen Queue</Text>
-                <Text style={[styles.metricValue, { color: COLORS.orange }]}>
-                  {MOCK_ADMIN_METRICS.kitchenQueue} Tickets
-                </Text>
-                <Text style={styles.metricSub}>Avg Prep: 14 mins</Text>
-              </View>
+        {/* Activity Log */}
+        <Text style={styles.sectionTitle}>Recent Activity</Text>
+        <View style={styles.activityList}>
+          <View style={styles.activityItem}>
+            <View style={styles.activityDot} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.activityText}>Table #4 completed payment of $84.20</Text>
+              <Text style={styles.activityTime}>5 mins ago</Text>
             </View>
+          </View>
 
-            {/* Admin Quick Actions */}
-            <Text style={styles.sectionHeading}>Admin Management & Actions</Text>
-            <View style={styles.actionGrid}>
-              <TouchableOpacity 
-                style={styles.adminActionBtn}
-                onPress={() => navigation?.navigate('Orders')}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="add-circle-outline" size={24} color={COLORS.orange} style={{ marginBottom: 6 }} />
-                <Text style={styles.actionBtnText}>Add New Order</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.adminActionBtn}
-                onPress={() => navigation?.navigate('Tables')}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="create-outline" size={24} color={COLORS.orange} style={{ marginBottom: 6 }} />
-                <Text style={styles.actionBtnText}>Edit Floor Plan</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.adminActionBtn}
-                onPress={() => navigation?.navigate('Menu')}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="restaurant-outline" size={24} color={COLORS.orange} style={{ marginBottom: 6 }} />
-                <Text style={styles.actionBtnText}>Update Menu</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.adminActionBtn, { borderColor: COLORS.red }]}
-                onPress={() => navigation?.navigate('Orders')}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="trash-outline" size={24} color={COLORS.red} style={{ marginBottom: 6 }} />
-                <Text style={[styles.actionBtnText, { color: COLORS.red }]}>Void / Cancel</Text>
-              </TouchableOpacity>
+          <View style={styles.activityItem}>
+            <View style={styles.activityDot} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.activityText}>New order #104 placed for Table #2</Text>
+              <Text style={styles.activityTime}>12 mins ago</Text>
             </View>
-          </>
-        ) : (
-          /* ----------------- USER / STAFF DASHBOARD VIEW ----------------- */
-          <>
-            {/* Personal Performance Metrics */}
-            <Text style={styles.sectionHeading}>Today's Work Summary</Text>
-            <View style={styles.metricsGrid}>
-              <View style={[styles.metricCard, { borderColor: COLORS.orange }]}>
-                <Text style={styles.metricLabel}>Orders Processed Today</Text>
-                <Text style={[styles.metricValue, { color: COLORS.orange }]}>
-                  {MOCK_USER_METRICS.myTodayOrders}
-                </Text>
-                <Text style={styles.metricSub}>Today's count</Text>
-              </View>
-              <View style={[styles.metricCard, { borderColor: COLORS.green }]}>
-                <Text style={styles.metricLabel}>Total Sales Done</Text>
-                <Text style={[styles.metricValue, { color: COLORS.green }]}>
-                  {MOCK_USER_METRICS.myTodaySales}
-                </Text>
-                <Text style={styles.metricSub}>Collected Amount</Text>
-              </View>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Active Kitchen Tickets</Text>
-                <Text style={styles.metricValue}>{MOCK_USER_METRICS.myActiveTickets}</Text>
-                <Text style={styles.metricSub}>In Process</Text>
-              </View>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricLabel}>Logged Shift Time</Text>
-                <Text style={styles.metricValue}>{MOCK_USER_METRICS.shiftHours}</Text>
-                <Text style={styles.metricSub}>Active</Text>
-              </View>
+          </View>
+
+          <View style={styles.activityItem}>
+            <View style={[styles.activityDot, { backgroundColor: '#35D49B' }]} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.activityText}>Elena S. checked in for shift</Text>
+              <Text style={styles.activityTime}>45 mins ago</Text>
             </View>
-
-            {/* User Orders Details */}
-            <View style={styles.listHeaderRow}>
-              <Text style={styles.sectionHeading}>My Served Orders Detail</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Ionicons name="lock-closed-outline" size={12} color={COLORS.textSecondary} style={{ marginRight: 4 }} />
-                <Text style={styles.readOnlyTag}>Read-Only View</Text>
-              </View>
-            </View>
-
-            {MOCK_MY_ORDERS.map((item) => (
-              <View key={item.id} style={styles.orderDetailCard}>
-                <View style={styles.orderTopRow}>
-                  <Text style={styles.orderIdText}>{item.id}</Text>
-                  <Text style={styles.orderTimeText}>{item.time}</Text>
-                </View>
-                <View style={styles.orderMiddleRow}>
-                  <Text style={styles.orderTableText}>{item.table}</Text>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      { backgroundColor: item.status === 'Completed' ? COLORS.greenSoft : COLORS.orangeSoft },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.statusText,
-                        { color: item.status === 'Completed' ? COLORS.green : COLORS.orange },
-                      ]}
-                    >
-                      {item.status}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.orderItemsText}>{item.items}</Text>
-                <View style={styles.orderBottomRow}>
-                  <Text style={styles.totalLabel}>Bill Amount:</Text>
-                  <Text style={styles.totalValue}>{item.total}</Text>
-                </View>
-              </View>
-            ))}
-          </>
-        )}
-
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
-  scroll: { padding: 18, paddingBottom: 40 },
-
-  headerRow: {
+  container: {
+    flex: 1,
+    backgroundColor: '#070E20',
+  },
+  header: {
     flexDirection: 'row',
-    justify: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-    marginTop: Platform.OS === 'android' ? 8 : 4,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'android' ? 10 : 12,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#101A31',
   },
-  welcomeTitle: { color: COLORS.textPrimary, fontSize: 20, fontWeight: '700' },
-  roleSubtext: { color: COLORS.textSecondary, fontSize: 12, marginTop: 4 },
-  roleBadge: { color: COLORS.orange, fontWeight: '700' },
-  
-  profileBtn: {
-    padding: 2,
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  avatarCircle: {
-    width: 40,
-    height: 40,
+  greetingText: {
+    color: '#8D96AA',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  userName: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  profileBadge: {
+    backgroundColor: 'rgba(255, 118, 34, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: COLORS.orangeSoft,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: COLORS.orange,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 118, 34, 0.3)',
   },
-
-  sectionHeading: {
-    color: COLORS.textPrimary,
+  roleBadgeText: {
+    color: '#FF7622',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  profileIconBtn: {
+    paddingLeft: 4,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 30,
+  },
+  sectionTitle: {
+    color: '#FFF',
     fontSize: 15,
     fontWeight: '700',
-    marginTop: 15,
+    marginTop: 12,
     marginBottom: 12,
   },
-
-  metricsGrid: {
+  statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justify: 'space-between',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 8,
   },
-  metricCard: {
-    width: '48%',
-    backgroundColor: COLORS.card,
+  statCard: {
+    backgroundColor: '#0D162C',
+    padding: 14,
     borderRadius: 14,
+    marginBottom: 8,
     borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    padding: 14,
-    marginBottom: 12,
+    borderColor: '#202D49',
   },
-  metricLabel: { color: COLORS.textSecondary, fontSize: 12 },
-  metricValue: { color: COLORS.textPrimary, fontSize: 20, fontWeight: '700', marginTop: 6 },
-  metricTrend: { color: COLORS.green, fontSize: 11, marginTop: 4 },
-  metricSub: { color: COLORS.textSecondary, fontSize: 11, marginTop: 4 },
-
-  actionGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justify: 'space-between',
-  },
-  adminActionBtn: {
-    width: '48%',
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    paddingVertical: 14,
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  actionBtnText: { color: COLORS.textPrimary, fontSize: 13, fontWeight: '600' },
-
-  listHeaderRow: {
-    flexDirection: 'row',
-    justify: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  readOnlyTag: { color: COLORS.textSecondary, fontSize: 11 },
-
-  orderDetailCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    padding: 14,
     marginBottom: 10,
   },
-  orderTopRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  orderIdText: { color: COLORS.orange, fontWeight: '700', fontSize: 13 },
-  orderTimeText: { color: COLORS.textSecondary, fontSize: 12 },
-  orderMiddleRow: {
-    flexDirection: 'row',
-    justify: 'space-between',
-    alignItems: 'center',
-    marginTop: 6,
+  statValue: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '700',
   },
-  orderTableText: { color: COLORS.textPrimary, fontSize: 15, fontWeight: '600' },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  statusText: { fontSize: 11, fontWeight: '700' },
-  orderItemsText: { color: COLORS.textSecondary, fontSize: 13, marginTop: 8 },
-  
-  orderBottomRow: {
-    flexDirection: 'row',
-    justify: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.cardBorder,
+  statLabel: {
+    color: '#7E879B',
+    fontSize: 11,
+    marginTop: 4,
   },
-  totalLabel: { color: COLORS.textSecondary, fontSize: 12 },
-  totalValue: { color: COLORS.textPrimary, fontWeight: '700', fontSize: 15 },
+  actionsGrid: {
+    flexDirection: 'column',
+    gap: 10,
+    marginBottom: 10,
+  },
+  actionCard: {
+    backgroundColor: '#0D162C',
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#202D49',
+  },
+  adminHighlightCard: {
+    borderColor: 'rgba(255, 118, 34, 0.4)',
+    backgroundColor: '#101B35',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  actionTitle: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  actionSub: {
+    color: '#7E879B',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  activityList: {
+    backgroundColor: '#0D162C',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#202D49',
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  activityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF7622',
+    marginTop: 5,
+    marginRight: 10,
+  },
+  activityText: {
+    color: '#E0E6ED',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  activityTime: {
+    color: '#7E879B',
+    fontSize: 11,
+    marginTop: 2,
+  },
 });
+
+export default DashboardScreen;

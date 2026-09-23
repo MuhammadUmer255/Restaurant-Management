@@ -33,8 +33,8 @@ const ROLES_LIST = ['Waiter', 'Head Waiter', 'Chef', 'Head Chef', 'Manager'];
 
 const EmployeeCrudScreen = ({ route, navigation }) => {
   const authContext = useAuth ? useAuth() : {};
-  const currentRole = route?.params?.role || authContext?.userRole || 'admin';
-  const isAdmin = currentRole === 'admin';
+  const currentRole = route?.params?.role || authContext?.user?.role || authContext?.userRole || 'admin';
+  const isAdmin = String(currentRole).toLowerCase() === 'admin';
 
   const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
   const [modalVisible, setModalVisible] = useState(false);
@@ -67,6 +67,14 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
     setToastConfig((prev) => ({ ...prev, visible: false }));
   };
 
+  const handleBackNavigation = () => {
+    if (navigation?.canGoBack && navigation.canGoBack()) {
+      navigation.goBack();
+    } else if (navigation?.navigate) {
+      navigation.navigate('Dashboard');
+    }
+  };
+
   if (!isAdmin) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -79,7 +87,7 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
           </Text>
           <TouchableOpacity
             style={styles.goBackBtn}
-            onPress={() => navigation?.goBack()}
+            onPress={handleBackNavigation}
             activeOpacity={0.8}
           >
             <Text style={styles.goBackText}>Go Back</Text>
@@ -169,7 +177,7 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
 
       {/* Header Section */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation?.goBack()} style={styles.backBtn} activeOpacity={0.7}>
+        <TouchableOpacity onPress={handleBackNavigation} style={styles.backBtn} activeOpacity={0.7}>
           <Text style={styles.backText}>‹ Back</Text>
         </TouchableOpacity>
 
@@ -364,7 +372,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justify: 'space-between',
     paddingHorizontal: 16,
     paddingTop: Platform.OS === 'android' ? 8 : 12,
     paddingBottom: 14,

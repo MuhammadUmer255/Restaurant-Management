@@ -27,7 +27,7 @@ import MenuCrudScreen from '../screens/MenuCrudScreen';
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
-  const { user, userToken } = useAuth();
+  const { user, userToken } = useAuth ? useAuth() : {};
 
   return (
     <NavigationContainer>
@@ -47,7 +47,7 @@ const AppNavigator = () => {
             <Stack.Screen name="ForgotPasswordScreen" component={ForgotPasswordScreen} />
           </>
         ) : (
-          // 🟢 Authenticated Stack (Passes user role to MainTabs)
+          // 🟢 Authenticated Stack
           <>
             <Stack.Screen
               name="MainTabs"
@@ -59,7 +59,11 @@ const AppNavigator = () => {
             <Stack.Screen name="TablesScreen" component={TablesScreen} />
             <Stack.Screen name="BillingScreen" component={BillingScreen} />
             <Stack.Screen name="ProfileScreen" component={ProfileScreen} /> 
+            
+            {/* Employee Management Screens */}
+            <Stack.Screen name="EmployeeCrud" component={EmployeeCrudScreen} />
             <Stack.Screen name="EmployeeCrudScreen" component={EmployeeCrudScreen} />
+            
             <Stack.Screen name="TableCrudScreen" component={TableCrudScreen} />
             <Stack.Screen name="MenuCrudScreen" component={MenuCrudScreen} />
           </>
