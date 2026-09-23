@@ -14,39 +14,39 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
-import Toast from '../components/Toast'; 
+import Toast from '../components/Toast';
 
 const INITIAL_MENU = [
-  { id: '1', name: 'Truffle Wagyu Ribeye', category: 'Mains', price: 68.0, available: true },
-  { id: '2', name: 'Yuzu Basil Smash', category: 'Beverages', price: 28.0, available: true },
-  { id: '3', name: 'Hokkaido Scallops Crudo', category: 'Starters', price: 39.25, available: true },
-  { id: '4', name: 'Valrhona Chocolate Soufflé', category: 'Desserts', price: 24.0, available: false },
+  { id: '1', name: 'Zinger Burger', price: '550', category: 'Fast Food', available: true },
+  { id: '2', name: 'Chicken Karahi', price: '1200', category: 'Main Course', available: true },
+  { id: '3', name: 'Club Sandwich', price: '400', category: 'Fast Food', available: false },
+  { id: '4', name: 'Mint Margarita', price: '250', category: 'Drinks', available: true },
 ];
 
-const CATEGORIES = ['All', 'Starters', 'Mains', 'Desserts', 'Beverages'];
+const CATEGORIES = ['All', 'Fast Food', 'Main Course', 'Drinks', 'Dessert'];
 
 export default function MenuCrudScreen({ route, navigation }) {
-  // Role Detection (Supports both Route params & AuthContext)
+  // Role Detection
   const authContext = useAuth ? useAuth() : {};
-  const currentRole = route?.params?.role || authContext?.userRole || 'admin';
-  const isAdmin = currentRole === 'admin';
+  const rawRole = route?.params?.role || authContext?.userRole || authContext?.user?.role || 'admin';
+  const isAdmin = String(rawRole).trim().toLowerCase() === 'admin';
 
   const [menuItems, setMenuItems] = useState(INITIAL_MENU);
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  // Selected item state for Context Actions
-  const [selectedItem, setSelectedItem] = useState(null);
+  // Active Selected Item State
+  const [selectedDish, setSelectedDish] = useState(null);
 
-  // Modal Visibility States
+  // Modal Visibilities
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
   const [formModalVisible, setFormModalVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [currentAction, setCurrentAction] = useState(null); // 'EDIT' or 'ADD'
 
-  // Form Input States
+  // Input States
   const [dishName, setDishName] = useState('');
-  const [category, setCategory] = useState('Mains');
-  const [price, setPrice] = useState('');
+  const [dishPrice, setDishPrice] = useState('');
+  const [dishCategory, setDishCategory] = useState('Fast Food');
 
   // Toast State
   const [toastConfig, setToastConfig] = useState({
@@ -63,29 +63,29 @@ export default function MenuCrudScreen({ route, navigation }) {
     setToastConfig((prev) => ({ ...prev, visible: false }));
   };
 
-  // Filtering
+  // Filter Menu
   const filteredMenu = menuItems.filter(
     (item) => selectedCategory === 'All' || item.category === selectedCategory
   );
 
-  // 1. Tapping an Item / Card
-  const handleItemPress = (item) => {
+  // 1. User taps a Dish Card or Manage Button
+  const handleDishPress = (dish) => {
     if (!isAdmin) return;
-    setSelectedItem(item);
+    setSelectedDish(dish);
     setActionMenuVisible(true);
   };
 
-  // 2. Tapping Header "+ Add Dish"
+  // 2. Open Add Dish Modal
   const openAddModal = () => {
-    setSelectedItem(null);
+    setSelectedDish(null);
     setCurrentAction('ADD');
     setDishName('');
-    setCategory('Mains');
-    setPrice('');
+    setDishPrice('');
+    setDishCategory('Fast Food');
     setFormModalVisible(true);
   };
 
-  // 3. User selects Action from Context Sheet
+  // 3. Action Sheet Choice
   const handleSelectAction = (action) => {
     setActionMenuVisible(false);
 
@@ -94,102 +94,93 @@ export default function MenuCrudScreen({ route, navigation }) {
       return;
     }
 
-    if (action === 'TOGGLE') {
-      if (selectedItem) {
-        toggleAvailability(selectedItem.id);
+    if (action === 'TOGGLE_AVAILABILITY') {
+      if (selectedDish) {
+        toggleAvailability(selectedDish.id);
       }
       return;
     }
 
     setCurrentAction(action);
 
-    if (action === 'EDIT' && selectedItem) {
-      setDishName(selectedItem.name);
-      setCategory(selectedItem.category);
-      setPrice(selectedItem.price.toString());
+    if (action === 'EDIT' && selectedDish) {
+      setDishName(selectedDish.name);
+      setDishPrice(selectedDish.price.toString());
+      setDishCategory(selectedDish.category);
     } else {
       setDishName('');
-      setCategory('Mains');
-      setPrice('');
+      setDishPrice('');
+      setDishCategory('Fast Food');
     }
 
     setFormModalVisible(true);
   };
 
-  // Confirm Delete Handler
-  const confirmDeleteDish = () => {
-    if (selectedItem) {
-      const name = selectedItem.name;
-      setMenuItems((prev) => prev.filter((i) => i.id !== selectedItem.id));
-      setDeleteConfirmVisible(false);
-      setSelectedItem(null);
-      showToast(`"${name}" removed from the menu!`, 'error');
-    }
-  };
-
-  // 4. Save handler for Form Modal
-  const handleSaveItem = () => {
-    if (!dishName.trim() || !price.trim()) {
-      showToast('Please enter dish name and price.', 'error');
-      return;
-    }
-
-    const parsedPrice = parseFloat(price);
-    if (isNaN(parsedPrice) || parsedPrice <= 0) {
-      showToast('Please enter a valid price.', 'error');
-      return;
-    }
-
-    if (currentAction === 'EDIT' && selectedItem) {
-      setMenuItems((prev) =>
-        prev.map((item) =>
-          item.id === selectedItem.id
-            ? { ...item, name: dishName, category, price: parsedPrice }
-            : item
-        )
-      );
-      showToast(`"${dishName}" updated successfully!`, 'success');
-    } else {
-      const newItem = {
-        id: Date.now().toString(),
-        name: dishName,
-        category,
-        price: parsedPrice,
-        available: true,
-      };
-      setMenuItems((prev) => [newItem, ...prev]);
-      showToast(`"${dishName}" added to the menu!`, 'success');
-    }
-
-    setFormModalVisible(false);
-    setSelectedItem(null);
-  };
-
+  // Toggle Stock Availability
   const toggleAvailability = (id) => {
     setMenuItems((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          const nextState = !item.available;
+      prev.map((dish) => {
+        if (dish.id === id) {
+          const nextStatus = !dish.available;
           showToast(
-            `"${item.name}" marked as ${nextState ? 'Available' : 'Sold Out'}`,
-            nextState ? 'success' : 'error'
+            `${dish.name} is now ${nextStatus ? 'In Stock' : 'Out of Stock'}`,
+            'success'
           );
-          return { ...item, available: nextState };
+          return { ...dish, available: nextStatus };
         }
-        return item;
+        return dish;
       })
     );
   };
 
-  const handleAddToCart = (item) => {
-    showToast(`Added "${item.name}" to cart!`, 'success');
+  // Confirm Delete Handler
+  const confirmDeleteDish = () => {
+    if (selectedDish) {
+      const name = selectedDish.name;
+      setMenuItems((prev) => prev.filter((d) => d.id !== selectedDish.id));
+      setDeleteConfirmVisible(false);
+      setSelectedDish(null);
+      showToast(`${name} removed from menu!`, 'error');
+    }
+  };
+
+  // 4. Save Details in Form Modal
+  const handleSaveDish = () => {
+    if (!dishName.trim() || !dishPrice.trim()) {
+      showToast('Please enter both dish name and price.', 'error');
+      return;
+    }
+
+    if (currentAction === 'EDIT' && selectedDish) {
+      setMenuItems((prev) =>
+        prev.map((d) =>
+          d.id === selectedDish.id
+            ? { ...d, name: dishName, price: dishPrice, category: dishCategory }
+            : d
+        )
+      );
+      showToast(`${dishName} updated successfully!`, 'success');
+    } else {
+      const newDish = {
+        id: Date.now().toString(),
+        name: dishName,
+        price: dishPrice,
+        category: dishCategory,
+        available: true,
+      };
+      setMenuItems((prev) => [newDish, ...prev]);
+      showToast(`${dishName} added to menu!`, 'success');
+    }
+
+    setFormModalVisible(false);
+    setSelectedDish(null);
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
 
-      {/* Top Floating Toast Notification */}
+      {/* Top Floating Toast */}
       <Toast
         visible={toastConfig.visible}
         message={toastConfig.message}
@@ -199,36 +190,35 @@ export default function MenuCrudScreen({ route, navigation }) {
 
       {/* Top Navigation Bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity 
-          onPress={() => navigation?.goBack()} 
+        <TouchableOpacity
+          onPress={() => navigation?.goBack()}
           style={styles.backBtn}
           activeOpacity={0.7}
         >
           <Text style={styles.backText}>‹ Back</Text>
         </TouchableOpacity>
-        
+
         <View style={styles.roleBadgeContainer}>
           <Text style={styles.roleBadgeText}>
-            {isAdmin ? '⚡ Admin Mode' : '👤 Customer View'}
+            {isAdmin ? '⚡ Admin Mode' : 'Customer View'}
           </Text>
         </View>
       </View>
 
-      {/* Main Screen Header */}
+      {/* Header */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.title} numberOfLines={1}>
-            Restaurant Menu
+            Menu Management
           </Text>
           <Text style={styles.subtitle}>
-            {filteredMenu.length} items available
+            {filteredMenu.length} items listed
           </Text>
         </View>
 
-        {/* Admin Action: Add Button */}
         {isAdmin && (
-          <TouchableOpacity 
-            style={styles.addBtn} 
+          <TouchableOpacity
+            style={styles.addBtn}
             onPress={openAddModal}
             activeOpacity={0.8}
           >
@@ -237,10 +227,10 @@ export default function MenuCrudScreen({ route, navigation }) {
         )}
       </View>
 
-      {/* Category Horizontal Filter Chips */}
+      {/* Horizontal Filter Chips */}
       <View style={{ height: 42, marginBottom: 8 }}>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryRow}
         >
@@ -277,45 +267,48 @@ export default function MenuCrudScreen({ route, navigation }) {
           <TouchableOpacity
             style={styles.card}
             activeOpacity={isAdmin ? 0.7 : 1}
-            onPress={() => handleItemPress(item)}
+            onPress={() => handleDishPress(item)}
           >
             <View style={{ flex: 1, paddingRight: 10 }}>
               <View style={styles.nameRow}>
-                <Text style={styles.dishName} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                {!item.available && (
-                  <View style={styles.outBadge}>
-                    <Text style={styles.outBadgeText}>Sold Out</Text>
-                  </View>
-                )}
+                <Text style={styles.dishName}>{item.name}</Text>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    {
+                      backgroundColor: item.available
+                        ? 'rgba(53, 212, 155, 0.15)'
+                        : 'rgba(255, 82, 106, 0.15)',
+                      borderColor: item.available
+                        ? 'rgba(53, 212, 155, 0.3)'
+                        : 'rgba(255, 82, 106, 0.3)',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusBadgeText,
+                      { color: item.available ? '#35D49B' : '#FF526A' },
+                    ]}
+                  >
+                    {item.available ? 'In Stock' : 'Out of Stock'}
+                  </Text>
+                </View>
               </View>
-              <Text style={styles.categoryText}>{item.category}</Text>
-              <Text style={styles.priceText}>${item.price.toFixed(2)}</Text>
+              <Text style={styles.categoryText}>Category: {item.category}</Text>
+              <Text style={styles.priceText}>Rs. {item.price}</Text>
             </View>
 
-            {/* Actions / Status Right Edge Indicator */}
-            {isAdmin ? (
+            {isAdmin && (
               <View style={styles.tapIndicator}>
                 <Text style={styles.tapIndicatorText}>Manage ›</Text>
               </View>
-            ) : (
-              <TouchableOpacity
-                style={[styles.addCartBtn, !item.available && styles.disabledCartBtn]}
-                disabled={!item.available}
-                onPress={() => handleAddToCart(item)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.addCartText, !item.available && styles.disabledCartText]}>
-                  {item.available ? '+ Order' : 'Unavailable'}
-                </Text>
-              </TouchableOpacity>
             )}
           </TouchableOpacity>
         )}
       />
 
-      {/* STEP 1: Context Action Menu Sheet (Modal) */}
+      {/* STEP 1: Action Context Sheet Modal */}
       {isAdmin && (
         <Modal
           visible={actionMenuVisible}
@@ -331,7 +324,7 @@ export default function MenuCrudScreen({ route, navigation }) {
             <TouchableWithoutFeedback>
               <View style={styles.modalContent}>
                 <Text style={styles.modalTitle} numberOfLines={1}>
-                  {selectedItem?.name || 'Item Options'}
+                  {selectedDish?.name || 'Dish Options'}
                 </Text>
                 <Text style={styles.modalSubtitle}>Select an action to perform:</Text>
 
@@ -345,11 +338,11 @@ export default function MenuCrudScreen({ route, navigation }) {
 
                 <TouchableOpacity
                   style={[styles.sheetOptionBtn, styles.toggleOptionBtn]}
-                  onPress={() => handleSelectAction('TOGGLE')}
+                  onPress={() => handleSelectAction('TOGGLE_AVAILABILITY')}
                   activeOpacity={0.7}
                 >
                   <Text style={styles.toggleOptionText}>
-                    {selectedItem?.available ? 'Mark as Sold Out' : 'Mark as Available'}
+                    Toggle Availability ({selectedDish?.available ? 'Mark Out of Stock' : 'Mark In Stock'})
                   </Text>
                 </TouchableOpacity>
 
@@ -391,7 +384,7 @@ export default function MenuCrudScreen({ route, navigation }) {
               <View style={styles.modalContent}>
                 <Text style={styles.modalTitle}>Delete Dish</Text>
                 <Text style={styles.modalSubtitle}>
-                  Are you sure you want to remove "{selectedItem?.name}" from the menu?
+                  Are you sure you want to remove {selectedDish?.name}?
                 </Text>
 
                 <View style={styles.modalActions}>
@@ -416,7 +409,7 @@ export default function MenuCrudScreen({ route, navigation }) {
         </Modal>
       )}
 
-      {/* STEP 3: Detail Form Modal */}
+      {/* STEP 3: Detail Input Modal */}
       {isAdmin && (
         <Modal
           visible={formModalVisible}
@@ -440,17 +433,17 @@ export default function MenuCrudScreen({ route, navigation }) {
                   style={styles.input}
                   value={dishName}
                   onChangeText={setDishName}
-                  placeholder="e.g. Wagyu Steak"
+                  placeholder="e.g. Zinger Burger"
                   placeholderTextColor="#778197"
                 />
 
-                <Text style={styles.label}>Price ($)</Text>
+                <Text style={styles.label}>Price (Rs.)</Text>
                 <TextInput
                   style={styles.input}
-                  value={price}
-                  onChangeText={setPrice}
+                  value={dishPrice}
+                  onChangeText={setDishPrice}
                   keyboardType="numeric"
-                  placeholder="29.99"
+                  placeholder="550"
                   placeholderTextColor="#778197"
                 />
 
@@ -461,15 +454,15 @@ export default function MenuCrudScreen({ route, navigation }) {
                       key={c}
                       style={[
                         styles.chip,
-                        category === c && styles.activeChip,
+                        dishCategory === c && styles.activeChip,
                       ]}
-                      onPress={() => setCategory(c)}
+                      onPress={() => setDishCategory(c)}
                       activeOpacity={0.7}
                     >
                       <Text
                         style={[
                           styles.chipText,
-                          category === c && styles.activeChipText,
+                          dishCategory === c && styles.activeChipText,
                         ]}
                       >
                         {c}
@@ -485,9 +478,10 @@ export default function MenuCrudScreen({ route, navigation }) {
                   >
                     <Text style={styles.cancelText}>Cancel</Text>
                   </TouchableOpacity>
+
                   <TouchableOpacity
                     style={styles.saveModalBtn}
-                    onPress={handleSaveItem}
+                    onPress={handleSaveDish}
                     activeOpacity={0.8}
                   >
                     <Text style={styles.saveText}>Save Dish</Text>
@@ -504,8 +498,7 @@ export default function MenuCrudScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#070E20' },
-  
-  // Navigation & Header Styling
+
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -525,7 +518,7 @@ const styles = StyleSheet.create({
     borderColor: '#202D49',
   },
   roleBadgeText: { color: '#FF7622', fontSize: 11, fontWeight: '700' },
-  
+
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -543,7 +536,6 @@ const styles = StyleSheet.create({
   },
   addBtnText: { color: '#FFF', fontWeight: '700', fontSize: 12 },
 
-  // Horizontal Scroll Filter
   categoryRow: { paddingHorizontal: 16, alignItems: 'center' },
   categoryChip: {
     backgroundColor: '#101A31',
@@ -558,7 +550,6 @@ const styles = StyleSheet.create({
   categoryChipText: { color: '#8D96AA', fontSize: 12, fontWeight: '600' },
   activeCategoryChipText: { color: '#FFF', fontWeight: '700' },
 
-  // Menu List Cards
   listContainer: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 30 },
   card: {
     backgroundColor: '#0D162C',
@@ -572,20 +563,17 @@ const styles = StyleSheet.create({
     borderColor: '#202D49',
   },
   nameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
-  dishName: { color: '#FFF', fontSize: 15, fontWeight: '700', marginRight: 6 },
-  outBadge: {
-    backgroundColor: 'rgba(255, 82, 106, 0.15)',
-    paddingHorizontal: 6,
+  dishName: { color: '#FFF', fontSize: 16, fontWeight: '700', marginRight: 8 },
+  statusBadge: {
+    paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 82, 106, 0.3)',
   },
-  outBadgeText: { color: '#FF526A', fontSize: 10, fontWeight: '700' },
-  categoryText: { color: '#7E879B', fontSize: 12, marginTop: 3 },
-  priceText: { color: '#35D49B', fontSize: 16, fontWeight: '700', marginTop: 4 },
+  statusBadgeText: { fontSize: 10, fontWeight: '700' },
+  categoryText: { color: '#7E879B', fontSize: 12, marginTop: 4 },
+  priceText: { color: '#FF7622', fontSize: 14, fontWeight: '700', marginTop: 4 },
 
-  // Admin Manage Indicator Right Side
   tapIndicator: {
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -596,18 +584,6 @@ const styles = StyleSheet.create({
   },
   tapIndicatorText: { color: '#FF7622', fontSize: 11, fontWeight: '600' },
 
-  // User Cart Button
-  addCartBtn: {
-    backgroundColor: '#FF7622',
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 8,
-  },
-  disabledCartBtn: { backgroundColor: '#101A31', borderWidth: 1, borderColor: '#202D49' },
-  addCartText: { color: '#FFF', fontWeight: '700', fontSize: 12 },
-  disabledCartText: { color: '#7E879B' },
-
-  // Context Sheet Option Buttons
   sheetOptionBtn: {
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -636,7 +612,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // Modal Dialog Styling
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.75)',
