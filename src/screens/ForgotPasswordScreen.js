@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -9,14 +9,18 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Animated,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { validateEmail, validatePassword, getPasswordErrorMessage } from '../utils/authValidation';
+import Toast from '../components/Toast';
+import { useTheme } from '../context/ThemeContext';
 
 export default function ForgotPasswordScreen({ navigation }) {
+  const { isDark, colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const [step, setStep] = useState(1); // 1: Email, 2: OTP, 3: Reset Password
   const [loading, setLoading] = useState(false);
 
@@ -35,10 +39,12 @@ export default function ForgotPasswordScreen({ navigation }) {
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
 
-  // Toast State & Animation
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState('success');
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  // Toast State (shared Toast component, theme-aware)
+  const [toastConfig, setToastConfig] = useState({
+    visible: false,
+    message: '',
+    type: 'success',
+  });
 
   const otpInputs = useRef([]);
   const timerRef = useRef(null);
@@ -79,25 +85,12 @@ export default function ForgotPasswordScreen({ navigation }) {
     }, 1000);
   };
 
-  // Safe Animated Toast Trigger
   const showToast = (message, type = 'success') => {
-    setToastMessage(message);
-    setToastType(type);
-    fadeAnim.stopAnimation();
+    setToastConfig({ visible: true, message, type });
+  };
 
-    Animated.sequence([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.delay(3000),
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start();
+  const hideToast = () => {
+    setToastConfig((prev) => ({ ...prev, visible: false }));
   };
 
   const [generatedOtp, setGeneratedOtp] = useState('');
@@ -115,7 +108,7 @@ export default function ForgotPasswordScreen({ navigation }) {
     }
 
     setLoading(true);
-    
+
     // Generate dynamic 6-digit OTP
     const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(newOtp);
@@ -226,30 +219,22 @@ export default function ForgotPasswordScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.bg}
+        translucent={false}
+      />
 
-      {/* Animated Toast Banner */}
-      {!!toastMessage && (
-        <Animated.View
-          style={[
-            styles.toastContainer,
-            toastType === 'success' ? styles.toastSuccess : styles.toastError,
-            { opacity: fadeAnim },
-          ]}
-        >
-          <Ionicons
-            name={toastType === 'success' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
-            size={18}
-            color="#FFFFFF"
-            style={{ marginRight: 6 }}
-          />
-          <Text style={styles.toastText}>{toastMessage}</Text>
-        </Animated.View>
-      )}
+      <Toast
+        visible={toastConfig.visible}
+        message={toastConfig.message}
+        type={toastConfig.type}
+        onDismiss={hideToast}
+      />
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          
+
           {/* Dynamic Back Button */}
           <TouchableOpacity
             style={styles.backBtn}
@@ -262,7 +247,7 @@ export default function ForgotPasswordScreen({ navigation }) {
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="chevron-back-outline" size={16} color="#FF7622" />
+              <Ionicons name="chevron-back-outline" size={16} color={colors.primary} />
               <Text style={styles.backText}>{step > 1 ? 'Previous Step' : 'Back to Login'}</Text>
             </View>
           </TouchableOpacity>
@@ -271,7 +256,7 @@ export default function ForgotPasswordScreen({ navigation }) {
           {step === 1 && (
             <View style={styles.card}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                <Ionicons name="lock-closed-outline" size={24} color="#FF7622" style={{ marginRight: 8 }} />
+                <Ionicons name="lock-closed-outline" size={24} color={colors.primary} style={{ marginRight: 8 }} />
                 <Text style={styles.title}>Forgot Password?</Text>
               </View>
               <Text style={styles.subtitle}>
@@ -287,7 +272,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                   setEmailError('');
                 }}
                 placeholder="admin@gourmet.com"
-                placeholderTextColor="#68738D"
+                placeholderTextColor={colors.muted}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
@@ -312,7 +297,7 @@ export default function ForgotPasswordScreen({ navigation }) {
           {step === 2 && (
             <View style={styles.card}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                <Ionicons name="mail-open-outline" size={24} color="#FF7622" style={{ marginRight: 8 }} />
+                <Ionicons name="mail-open-outline" size={24} color={colors.primary} style={{ marginRight: 8 }} />
                 <Text style={styles.title}>Enter OTP Code</Text>
               </View>
               <Text style={styles.subtitle}>
@@ -366,7 +351,7 @@ export default function ForgotPasswordScreen({ navigation }) {
           {step === 3 && (
             <View style={styles.card}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                <Ionicons name="key-outline" size={24} color="#FF7622" style={{ marginRight: 8 }} />
+                <Ionicons name="key-outline" size={24} color={colors.primary} style={{ marginRight: 8 }} />
                 <Text style={styles.title}>Reset Password</Text>
               </View>
               <Text style={styles.subtitle}>Create a new strong password for your account.</Text>
@@ -381,7 +366,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                 }}
                 secureTextEntry
                 placeholder="Min 8 chars (e.g. Admin@123)"
-                placeholderTextColor="#68738D"
+                placeholderTextColor={colors.muted}
               />
               {!!passwordError && <Text style={styles.fieldErrorText}>{passwordError}</Text>}
 
@@ -395,7 +380,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                 }}
                 secureTextEntry
                 placeholder="Re-enter new password"
-                placeholderTextColor="#68738D"
+                placeholderTextColor={colors.muted}
               />
               {!!confirmPasswordError && <Text style={styles.fieldErrorText}>{confirmPasswordError}</Text>}
 
@@ -420,86 +405,65 @@ export default function ForgotPasswordScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#070E20' },
-  scrollContent: { padding: 20, flexGrow: 1, justifyContent: 'center' },
+const makeStyles = (c) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    scrollContent: { padding: 20, flexGrow: 1, justifyContent: 'center' },
 
-  toastContainer: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    right: 20,
-    zIndex: 9999,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  toastSuccess: { backgroundColor: '#1E3A2B', borderWidth: 1, borderColor: '#35D49B' },
-  toastError: { backgroundColor: '#3A1822', borderWidth: 1, borderColor: '#FF526A' },
-  toastText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700', textAlign: 'center' },
+    backBtn: { marginBottom: 20 },
+    backText: { color: c.primary, fontWeight: '700', fontSize: 14 },
 
-  backBtn: { marginBottom: 20 },
-  backText: { color: '#FF7622', fontWeight: '700', fontSize: 14 },
+    card: {
+      backgroundColor: c.card,
+      borderRadius: 16,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    title: { color: c.text, fontSize: 22, fontWeight: '800' },
+    subtitle: { color: c.icon, fontSize: 13, marginBottom: 20, lineHeight: 18, marginTop: 4 },
+    highlightText: { color: c.text, fontWeight: '700' },
 
-  card: {
-    backgroundColor: '#0D162C',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#202D49',
-  },
-  title: { color: '#FFFFFF', fontSize: 22, fontWeight: '800' },
-  subtitle: { color: '#8D96AA', fontSize: 13, marginBottom: 20, lineHeight: 18, marginTop: 4 },
-  highlightText: { color: '#FFFFFF', fontWeight: '700' },
+    label: { color: c.icon, fontSize: 12, marginBottom: 6, fontWeight: '600', marginTop: 10 },
+    input: {
+      backgroundColor: c.bg,
+      color: c.text,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: c.border,
+      fontSize: 14,
+    },
+    inputErrorBorder: { borderColor: c.danger },
+    fieldErrorText: { color: c.danger, fontSize: 12, marginTop: 5, fontWeight: '500' },
+    fieldErrorTextCentered: { color: c.danger, fontSize: 12, marginTop: 8, textAlign: 'center', fontWeight: '600' },
 
-  label: { color: '#8D96AA', fontSize: 12, marginBottom: 6, fontWeight: '600', marginTop: 10 },
-  input: {
-    backgroundColor: '#070E20',
-    color: '#FFFFFF',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#202D49',
-    fontSize: 14,
-  },
-  inputErrorBorder: { borderColor: '#FF526A' },
-  fieldErrorText: { color: '#FF526A', fontSize: 12, marginTop: 5, fontWeight: '500' },
-  fieldErrorTextCentered: { color: '#FF526A', fontSize: 12, marginTop: 8, textAlign: 'center', fontWeight: '600' },
+    primaryBtn: {
+      backgroundColor: c.primary,
+      paddingVertical: 14,
+      borderRadius: 10,
+      alignItems: 'center',
+      marginTop: 20,
+    },
+    btnDisabled: { opacity: 0.6 },
+    btnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
 
-  primaryBtn: {
-    backgroundColor: '#FF7622',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  btnDisabled: { opacity: 0.6 },
-  btnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
+    otpRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 10 },
+    otpBox: {
+      width: 44,
+      height: 50,
+      backgroundColor: c.bg,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      textAlign: 'center',
+      color: c.primary,
+      fontSize: 20,
+      fontWeight: '800',
+    },
 
-  otpRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 10 },
-  otpBox: {
-    width: 44,
-    height: 50,
-    backgroundColor: '#070E20',
-    borderWidth: 1,
-    borderColor: '#202D49',
-    borderRadius: 8,
-    textAlign: 'center',
-    color: '#FF7622',
-    fontSize: 20,
-    fontWeight: '800',
-  },
-
-  resendContainer: { marginTop: 16, alignItems: 'center' },
-  resendActiveText: { color: '#FF7622', fontWeight: '700', fontSize: 13 },
-  resendDisabledText: { color: '#68738D', fontSize: 13, fontWeight: '500' },
-});
+    resendContainer: { marginTop: 16, alignItems: 'center' },
+    resendActiveText: { color: c.primary, fontWeight: '700', fontSize: 13 },
+    resendDisabledText: { color: c.muted, fontSize: 13, fontWeight: '500' },
+  });

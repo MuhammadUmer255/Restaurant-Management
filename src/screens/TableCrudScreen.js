@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import Toast from '../components/Toast';
 
 const INITIAL_TABLES = [
@@ -26,10 +27,13 @@ const INITIAL_TABLES = [
 const AREAS = ['All', 'Indoor', 'Patio', 'VIP'];
 
 export default function TableCrudScreen({ route, navigation }) {
-  // Role Detection
-  const authContext = useAuth ? useAuth() : {};
-  const currentRole = route?.params?.role || authContext?.userRole || 'admin';
-  const isAdmin = currentRole === 'admin';
+  const authContext = useAuth() || {};
+  const { isDark, colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  // Role Detection (case-insensitive: Dashboard 'ADMIN' bhejta hai)
+  const currentRole = route?.params?.role || authContext?.user?.role || authContext?.userRole || 'admin';
+  const isAdmin = String(currentRole).trim().toLowerCase() === 'admin';
 
   const [tables, setTables] = useState(INITIAL_TABLES);
   const [selectedArea, setSelectedArea] = useState('All');
@@ -183,19 +187,23 @@ export default function TableCrudScreen({ route, navigation }) {
   const getStatusStyle = (status) => {
     switch (status) {
       case 'Available':
-        return { bg: 'rgba(53, 212, 155, 0.15)', text: '#35D49B', border: 'rgba(53, 212, 155, 0.3)' };
+        return { bg: 'rgba(53, 212, 155, 0.15)', text: colors.success, border: 'rgba(53, 212, 155, 0.3)' };
       case 'Occupied':
-        return { bg: 'rgba(255, 82, 106, 0.15)', text: '#FF526A', border: 'rgba(255, 82, 106, 0.3)' };
+        return { bg: 'rgba(255, 82, 106, 0.15)', text: colors.danger, border: 'rgba(255, 82, 106, 0.3)' };
       case 'Reserved':
-        return { bg: 'rgba(245, 174, 34, 0.15)', text: '#F5AE22', border: 'rgba(245, 174, 34, 0.3)' };
+        return { bg: 'rgba(245, 174, 34, 0.15)', text: colors.warning, border: 'rgba(245, 174, 34, 0.3)' };
       default:
-        return { bg: '#101A31', text: '#7E879B', border: '#202D49' };
+        return { bg: colors.chip, text: colors.muted, border: colors.border };
     }
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.bg}
+        translucent={false}
+      />
 
       {/* Top Floating Toast */}
       <Toast
@@ -207,14 +215,14 @@ export default function TableCrudScreen({ route, navigation }) {
 
       {/* Top Navigation Bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity 
-          onPress={() => navigation?.goBack()} 
+        <TouchableOpacity
+          onPress={() => navigation?.goBack()}
           style={styles.backBtn}
           activeOpacity={0.7}
         >
           <Text style={styles.backText}>‹ Back</Text>
         </TouchableOpacity>
-        
+
         <View style={styles.roleBadgeContainer}>
           <Text style={styles.roleBadgeText}>
             {isAdmin ? '⚡ Admin Mode' : ' Customer View'}
@@ -234,8 +242,8 @@ export default function TableCrudScreen({ route, navigation }) {
         </View>
 
         {isAdmin && (
-          <TouchableOpacity 
-            style={styles.addBtn} 
+          <TouchableOpacity
+            style={styles.addBtn}
             onPress={openAddModal}
             activeOpacity={0.8}
           >
@@ -246,8 +254,8 @@ export default function TableCrudScreen({ route, navigation }) {
 
       {/* Horizontal Filter Chips */}
       <View style={{ height: 42, marginBottom: 8 }}>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryRow}
         >
@@ -404,7 +412,7 @@ export default function TableCrudScreen({ route, navigation }) {
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[styles.saveModalBtn, { backgroundColor: '#FF526A' }]}
+                    style={[styles.saveModalBtn, { backgroundColor: colors.danger }]}
                     onPress={confirmDeleteTable}
                     activeOpacity={0.8}
                   >
@@ -442,7 +450,7 @@ export default function TableCrudScreen({ route, navigation }) {
                   value={tableNumber}
                   onChangeText={setTableNumber}
                   placeholder="e.g. Table 5"
-                  placeholderTextColor="#778197"
+                  placeholderTextColor={colors.muted}
                 />
 
                 <Text style={styles.label}>Capacity (Seats)</Text>
@@ -452,7 +460,7 @@ export default function TableCrudScreen({ route, navigation }) {
                   onChangeText={setSeats}
                   keyboardType="numeric"
                   placeholder="4"
-                  placeholderTextColor="#778197"
+                  placeholderTextColor={colors.muted}
                 />
 
                 <Text style={styles.label}>Area Section</Text>
@@ -503,169 +511,170 @@ export default function TableCrudScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#070E20' },
+const makeStyles = (c) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
 
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? 8 : 0,
-    paddingBottom: 4,
-  },
-  backBtn: { paddingVertical: 4, paddingRight: 8 },
-  backText: { color: '#FF7622', fontSize: 16, fontWeight: '600' },
-  roleBadgeContainer: {
-    backgroundColor: '#101A31',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#202D49',
-  },
-  roleBadgeText: { color: '#FF7622', fontSize: 11, fontWeight: '700' },
+    topBar: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingTop: Platform.OS === 'android' ? 8 : 0,
+      paddingBottom: 4,
+    },
+    backBtn: { paddingVertical: 4, paddingRight: 8 },
+    backText: { color: c.primary, fontSize: 16, fontWeight: '600' },
+    roleBadgeContainer: {
+      backgroundColor: c.chip,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    roleBadgeText: { color: c.primary, fontSize: 11, fontWeight: '700' },
 
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  title: { color: '#FFF', fontSize: 22, fontWeight: '700' },
-  subtitle: { color: '#7E879B', fontSize: 12, marginTop: 2, fontWeight: '500' },
-  addBtn: {
-    backgroundColor: '#FF7622',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  addBtnText: { color: '#FFF', fontWeight: '700', fontSize: 12 },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    title: { color: c.text, fontSize: 22, fontWeight: '700' },
+    subtitle: { color: c.muted, fontSize: 12, marginTop: 2, fontWeight: '500' },
+    addBtn: {
+      backgroundColor: c.primary,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 8,
+    },
+    addBtnText: { color: '#FFF', fontWeight: '700', fontSize: 12 },
 
-  categoryRow: { paddingHorizontal: 16, alignItems: 'center' },
-  categoryChip: {
-    backgroundColor: '#101A31',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#202D49',
-  },
-  activeCategoryChip: { backgroundColor: '#FF7622', borderColor: '#FF7622' },
-  categoryChipText: { color: '#8D96AA', fontSize: 12, fontWeight: '600' },
-  activeCategoryChipText: { color: '#FFF', fontWeight: '700' },
+    categoryRow: { paddingHorizontal: 16, alignItems: 'center' },
+    categoryChip: {
+      backgroundColor: c.chip,
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderRadius: 20,
+      marginRight: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    activeCategoryChip: { backgroundColor: c.primary, borderColor: c.primary },
+    categoryChipText: { color: c.icon, fontSize: 12, fontWeight: '600' },
+    activeCategoryChipText: { color: '#FFF', fontWeight: '700' },
 
-  listContainer: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 30 },
-  card: {
-    backgroundColor: '#0D162C',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#202D49',
-  },
-  nameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
-  tableName: { color: '#FFF', fontSize: 16, fontWeight: '700', marginRight: 8 },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-  },
-  statusBadgeText: { fontSize: 10, fontWeight: '700' },
-  areaText: { color: '#7E879B', fontSize: 12, marginTop: 4 },
-  seatsText: { color: '#35D49B', fontSize: 14, fontWeight: '700', marginTop: 4 },
+    listContainer: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 30 },
+    card: {
+      backgroundColor: c.card,
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 12,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    nameRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+    tableName: { color: c.text, fontSize: 16, fontWeight: '700', marginRight: 8 },
+    statusBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 4,
+      borderWidth: 1,
+    },
+    statusBadgeText: { fontSize: 10, fontWeight: '700' },
+    areaText: { color: c.muted, fontSize: 12, marginTop: 4 },
+    seatsText: { color: c.success, fontSize: 14, fontWeight: '700', marginTop: 4 },
 
-  tapIndicator: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#101A31',
-    borderWidth: 1,
-    borderColor: '#202D49',
-  },
-  tapIndicatorText: { color: '#FF7622', fontSize: 11, fontWeight: '600' },
+    tapIndicator: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 6,
+      backgroundColor: c.chip,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    tapIndicatorText: { color: c.primary, fontSize: 11, fontWeight: '600' },
 
-  sheetOptionBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-  },
-  editOptionBtn: {
-    backgroundColor: 'rgba(53, 212, 155, 0.12)',
-    borderColor: 'rgba(53, 212, 155, 0.3)',
-  },
-  editOptionText: { color: '#35D49B', fontWeight: '700', fontSize: 13 },
-  toggleOptionBtn: {
-    backgroundColor: 'rgba(245, 174, 34, 0.12)',
-    borderColor: 'rgba(245, 174, 34, 0.3)',
-  },
-  toggleOptionText: { color: '#F5AE22', fontWeight: '700', fontSize: 13 },
-  deleteOptionBtn: {
-    backgroundColor: 'rgba(255, 82, 106, 0.12)',
-    borderColor: 'rgba(255, 82, 106, 0.3)',
-  },
-  deleteOptionText: { color: '#FF526A', fontWeight: '700', fontSize: 13 },
-  cancelSheetBtn: {
-    alignItems: 'center',
-    paddingVertical: 10,
-    marginTop: 4,
-  },
+    sheetOptionBtn: {
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderRadius: 8,
+      marginBottom: 8,
+      borderWidth: 1,
+    },
+    editOptionBtn: {
+      backgroundColor: 'rgba(53, 212, 155, 0.12)',
+      borderColor: 'rgba(53, 212, 155, 0.3)',
+    },
+    editOptionText: { color: c.success, fontWeight: '700', fontSize: 13 },
+    toggleOptionBtn: {
+      backgroundColor: 'rgba(245, 174, 34, 0.12)',
+      borderColor: 'rgba(245, 174, 34, 0.3)',
+    },
+    toggleOptionText: { color: c.warning, fontWeight: '700', fontSize: 13 },
+    deleteOptionBtn: {
+      backgroundColor: 'rgba(255, 82, 106, 0.12)',
+      borderColor: 'rgba(255, 82, 106, 0.3)',
+    },
+    deleteOptionText: { color: c.danger, fontWeight: '700', fontSize: 13 },
+    cancelSheetBtn: {
+      alignItems: 'center',
+      paddingVertical: 10,
+      marginTop: 4,
+    },
 
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: '#0D162C',
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#202D49',
-  },
-  modalTitle: { color: '#FFF', fontSize: 18, fontWeight: '700', marginBottom: 4 },
-  modalSubtitle: { color: '#7E879B', fontSize: 12, marginBottom: 16 },
-  label: { color: '#8D96AA', fontSize: 12, marginTop: 12, marginBottom: 6, fontWeight: '600' },
-  input: {
-    backgroundColor: '#070E20',
-    color: '#FFF',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#202D49',
-    fontSize: 13,
-  },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
-  chip: {
-    backgroundColor: '#070E20',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    marginRight: 6,
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: '#202D49',
-  },
-  activeChip: { backgroundColor: '#FF7622', borderColor: '#FF7622' },
-  chipText: { color: '#8D96AA', fontSize: 11 },
-  activeChipText: { color: '#FFF', fontWeight: '700' },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 22, alignItems: 'center' },
-  cancelModalBtn: { paddingHorizontal: 16, paddingVertical: 10, marginRight: 8 },
-  cancelText: { color: '#8D96AA', fontWeight: '600' },
-  saveModalBtn: {
-    backgroundColor: '#FF7622',
-    paddingHorizontal: 22,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  saveText: { color: '#FFF', fontWeight: '700' },
-});
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.75)',
+      justifyContent: 'center',
+      padding: 20,
+    },
+    modalContent: {
+      backgroundColor: c.card,
+      padding: 20,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    modalTitle: { color: c.text, fontSize: 18, fontWeight: '700', marginBottom: 4 },
+    modalSubtitle: { color: c.muted, fontSize: 12, marginBottom: 16 },
+    label: { color: c.icon, fontSize: 12, marginTop: 12, marginBottom: 6, fontWeight: '600' },
+    input: {
+      backgroundColor: c.bg,
+      color: c.text,
+      padding: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+      fontSize: 13,
+    },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
+    chip: {
+      backgroundColor: c.bg,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 6,
+      marginRight: 6,
+      marginBottom: 6,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    activeChip: { backgroundColor: c.primary, borderColor: c.primary },
+    chipText: { color: c.icon, fontSize: 11 },
+    activeChipText: { color: '#FFF', fontWeight: '700' },
+    modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 22, alignItems: 'center' },
+    cancelModalBtn: { paddingHorizontal: 16, paddingVertical: 10, marginRight: 8 },
+    cancelText: { color: c.icon, fontWeight: '600' },
+    saveModalBtn: {
+      backgroundColor: c.primary,
+      paddingHorizontal: 22,
+      paddingVertical: 10,
+      borderRadius: 8,
+    },
+    saveText: { color: '#FFF', fontWeight: '700' },
+  });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -16,7 +16,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
-import Toast from '../components/Toast'; 
+import { useTheme } from '../context/ThemeContext';
+import Toast from '../components/Toast';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -32,7 +33,10 @@ const INITIAL_EMPLOYEES = [
 const ROLES_LIST = ['Waiter', 'Head Waiter', 'Chef', 'Head Chef', 'Manager'];
 
 const EmployeeCrudScreen = ({ route, navigation }) => {
-  const authContext = useAuth ? useAuth() : {};
+  const authContext = useAuth() || {};
+  const { isDark, colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const currentRole = route?.params?.role || authContext?.user?.role || authContext?.userRole || 'admin';
   const isAdmin = String(currentRole).toLowerCase() === 'admin';
 
@@ -75,10 +79,18 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
     }
   };
 
+  const statusBar = (
+    <StatusBar
+      barStyle={isDark ? 'light-content' : 'dark-content'}
+      backgroundColor={colors.bg}
+      translucent={false}
+    />
+  );
+
   if (!isAdmin) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
+        {statusBar}
         <View style={styles.restrictedContainer}>
           <Text style={styles.lockIcon}>🔒</Text>
           <Text style={styles.restrictedTitle}>Access Restricted</Text>
@@ -165,7 +177,7 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
+      {statusBar}
 
       {/* Top Floating Toast Notification */}
       <Toast
@@ -227,7 +239,7 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
                 <View style={{ flex: 1, paddingRight: 8 }}>
                   <View style={styles.nameRow}>
                     <Text style={styles.empName} numberOfLines={1}>{emp.name}</Text>
-                    <View style={[styles.statusDot, { backgroundColor: emp.active ? '#35D49B' : '#FF526A' }]} />
+                    <View style={[styles.statusDot, { backgroundColor: emp.active ? colors.success : colors.danger }]} />
                   </View>
                   <Text style={styles.empRole}>{emp.role}</Text>
                   <Text style={styles.empEmail} numberOfLines={1}>{emp.email}</Text>
@@ -242,7 +254,7 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
 
                   <View style={styles.infoRow}>
                     <Text style={styles.infoLabel}>Status:</Text>
-                    <Text style={[styles.infoValue, { color: emp.active ? '#35D49B' : '#FF526A' }]}>
+                    <Text style={[styles.infoValue, { color: emp.active ? colors.success : colors.danger }]}>
                       {emp.active ? 'Active Employee' : 'Inactive / Suspended'}
                     </Text>
                   </View>
@@ -277,15 +289,15 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
           <TouchableWithoutFeedback>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Delete Staff Member</Text>
-              <Text style={{ color: '#7E879B', fontSize: 13, marginBottom: 16 }}>
-                Are you sure you want to remove <Text style={{ color: '#FFF', fontWeight: 'bold' }}>{deletingEmployee?.name}</Text> from employee management?
+              <Text style={styles.deleteMsg}>
+                Are you sure you want to remove <Text style={styles.deleteName}>{deletingEmployee?.name}</Text> from employee management?
               </Text>
 
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.cancelModalBtn} onPress={() => setDeleteConfirmVisible(false)}>
                   <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.saveModalBtn, { backgroundColor: '#FF526A' }]} onPress={confirmDelete} activeOpacity={0.8}>
+                <TouchableOpacity style={[styles.saveModalBtn, { backgroundColor: colors.danger }]} onPress={confirmDelete} activeOpacity={0.8}>
                   <Text style={styles.saveText}>Delete</Text>
                 </TouchableOpacity>
               </View>
@@ -311,7 +323,7 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
                 value={name}
                 onChangeText={setName}
                 placeholder="e.g. John Doe"
-                placeholderTextColor="#778197"
+                placeholderTextColor={colors.muted}
               />
 
               <Text style={styles.label}>Work Email</Text>
@@ -322,7 +334,7 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 placeholder="email@gourmet.com"
-                placeholderTextColor="#778197"
+                placeholderTextColor={colors.muted}
               />
 
               <Text style={styles.label}>Role</Text>
@@ -344,8 +356,8 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
                 <Switch
                   value={active}
                   onValueChange={setActive}
-                  trackColor={{ false: '#202D49', true: 'rgba(255, 118, 34, 0.4)' }}
-                  thumbColor={active ? '#FF7622' : '#8D96AA'}
+                  trackColor={{ false: colors.switchOff, true: 'rgba(255, 118, 34, 0.4)' }}
+                  thumbColor={active ? colors.primary : colors.icon}
                 />
               </View>
 
@@ -365,128 +377,131 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#070E20' },
+const makeStyles = (c) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
 
-  // Header UI
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justify: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? 8 : 12,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#131D35',
-  },
-  backBtn: { paddingVertical: 4, paddingRight: 8 },
-  backText: { color: '#FF7622', fontSize: 16, fontWeight: '600' },
-  titleWrapper: { flex: 1, alignItems: 'center', marginHorizontal: 8 },
-  title: { color: '#FFF', fontSize: 17, fontWeight: '700' },
-  addBtn: { backgroundColor: '#FF7622', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
-  addBtnText: { color: '#FFF', fontWeight: '700', fontSize: 12 },
+    // Header UI
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingTop: Platform.OS === 'android' ? 8 : 12,
+      paddingBottom: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: c.headerBorder,
+    },
+    backBtn: { paddingVertical: 4, paddingRight: 8 },
+    backText: { color: c.primary, fontSize: 16, fontWeight: '600' },
+    titleWrapper: { flex: 1, alignItems: 'center', marginHorizontal: 8 },
+    title: { color: c.text, fontSize: 17, fontWeight: '700' },
+    addBtn: { backgroundColor: c.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
+    addBtnText: { color: '#FFF', fontWeight: '700', fontSize: 12 },
 
-  // Filter Bar
-  filterRow: { paddingHorizontal: 16, alignItems: 'center' },
-  filterChip: {
-    backgroundColor: '#101A31',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#202D49',
-  },
-  activeFilterChip: { backgroundColor: '#FF7622', borderColor: '#FF7622' },
-  filterChipText: { color: '#8D96AA', fontSize: 12, fontWeight: '500' },
-  activeFilterChipText: { color: '#FFF', fontWeight: '700' },
+    // Filter Bar
+    filterRow: { paddingHorizontal: 16, alignItems: 'center' },
+    filterChip: {
+      backgroundColor: c.chip,
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderRadius: 20,
+      marginRight: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    activeFilterChip: { backgroundColor: c.primary, borderColor: c.primary },
+    filterChipText: { color: c.icon, fontSize: 12, fontWeight: '500' },
+    activeFilterChipText: { color: '#FFF', fontWeight: '700' },
 
-  // Card & List
-  listContainer: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 30 },
-  card: {
-    backgroundColor: '#0D162C',
-    padding: 14,
-    borderRadius: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#202D49',
-  },
-  empDetails: { flexDirection: 'row', alignItems: 'center' },
-  avatarCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 118, 34, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarText: { color: '#FF7622', fontSize: 16, fontWeight: '700' },
-  nameRow: { flexDirection: 'row', alignItems: 'center' },
-  empName: { color: '#FFF', fontSize: 15, fontWeight: '700', marginRight: 6 },
-  statusDot: { width: 7, height: 7, borderRadius: 4 },
-  empRole: { color: '#FF7622', fontSize: 12, marginVertical: 2, fontWeight: '600' },
-  empEmail: { color: '#7E879B', fontSize: 11 },
-  expandChevron: { color: '#7E879B', fontSize: 12, paddingLeft: 8 },
+    // Card & List
+    listContainer: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 30 },
+    card: {
+      backgroundColor: c.card,
+      padding: 14,
+      borderRadius: 14,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    empDetails: { flexDirection: 'row', alignItems: 'center' },
+    avatarCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: 'rgba(255, 118, 34, 0.15)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    avatarText: { color: c.primary, fontSize: 16, fontWeight: '700' },
+    nameRow: { flexDirection: 'row', alignItems: 'center' },
+    empName: { color: c.text, fontSize: 15, fontWeight: '700', marginRight: 6 },
+    statusDot: { width: 7, height: 7, borderRadius: 4 },
+    empRole: { color: c.primary, fontSize: 12, marginVertical: 2, fontWeight: '600' },
+    empEmail: { color: c.muted, fontSize: 11 },
+    expandChevron: { color: c.muted, fontSize: 12, paddingLeft: 8 },
 
-  // Expandable Details Area
-  detailsContainer: { marginTop: 12 },
-  divider: { height: 1, backgroundColor: '#202D49', marginBottom: 12 },
-  infoRow: { flexDirection: 'row', marginBottom: 6, alignItems: 'center' },
-  infoLabel: { color: '#7E879B', fontSize: 12, width: 60, fontWeight: '600' },
-  infoValue: { color: '#FFF', fontSize: 12, fontWeight: '500' },
+    // Expandable Details Area
+    detailsContainer: { marginTop: 12 },
+    divider: { height: 1, backgroundColor: c.border, marginBottom: 12 },
+    infoRow: { flexDirection: 'row', marginBottom: 6, alignItems: 'center' },
+    infoLabel: { color: c.muted, fontSize: 12, width: 60, fontWeight: '600' },
+    infoValue: { color: c.text, fontSize: 12, fontWeight: '500' },
 
-  // Actions Row inside Expansion
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 10,
-    gap: 10,
-  },
-  editBtn: {
-    backgroundColor: 'rgba(53, 212, 155, 0.12)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(53, 212, 155, 0.3)',
-  },
-  editText: { color: '#35D49B', fontSize: 12, fontWeight: '700' },
-  deleteBtn: {
-    backgroundColor: 'rgba(255, 82, 106, 0.12)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 82, 106, 0.3)',
-  },
-  deleteText: { color: '#FF526A', fontSize: 12, fontWeight: '700' },
+    // Actions Row inside Expansion
+    actionRow: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      marginTop: 10,
+      gap: 10,
+    },
+    editBtn: {
+      backgroundColor: 'rgba(53, 212, 155, 0.12)',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: 'rgba(53, 212, 155, 0.3)',
+    },
+    editText: { color: c.success, fontSize: 12, fontWeight: '700' },
+    deleteBtn: {
+      backgroundColor: 'rgba(255, 82, 106, 0.12)',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 82, 106, 0.3)',
+    },
+    deleteText: { color: c.danger, fontSize: 12, fontWeight: '700' },
 
-  // Modal Dialog
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#0D162C', padding: 20, borderRadius: 16, borderWidth: 1, borderColor: '#202D49' },
-  modalTitle: { color: '#FFF', fontSize: 18, fontWeight: '700', marginBottom: 16 },
-  label: { color: '#8D96AA', fontSize: 12, marginTop: 12, marginBottom: 6, fontWeight: '600' },
-  input: { backgroundColor: '#070E20', color: '#FFF', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#202D49', fontSize: 13 },
-  rolePickerRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
-  roleChip: { backgroundColor: '#070E20', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, marginRight: 6, marginBottom: 6, borderWidth: 1, borderColor: '#202D49' },
-  activeRoleChip: { backgroundColor: '#FF7622', borderColor: '#FF7622' },
-  roleChipText: { color: '#8D96AA', fontSize: 11 },
-  activeRoleChipText: { color: '#FFF', fontWeight: '700' },
-  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 22, alignItems: 'center' },
-  cancelModalBtn: { paddingHorizontal: 16, paddingVertical: 10, marginRight: 8 },
-  cancelText: { color: '#8D96AA', fontWeight: '600' },
-  saveModalBtn: { backgroundColor: '#FF7622', paddingHorizontal: 22, paddingVertical: 10, borderRadius: 8 },
-  saveText: { color: '#FFF', fontWeight: '700' },
+    // Modal Dialog
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 20 },
+    modalContent: { backgroundColor: c.card, padding: 20, borderRadius: 16, borderWidth: 1, borderColor: c.border },
+    modalTitle: { color: c.text, fontSize: 18, fontWeight: '700', marginBottom: 16 },
+    deleteMsg: { color: c.muted, fontSize: 13, marginBottom: 16 },
+    deleteName: { color: c.text, fontWeight: 'bold' },
+    label: { color: c.icon, fontSize: 12, marginTop: 12, marginBottom: 6, fontWeight: '600' },
+    input: { backgroundColor: c.bg, color: c.text, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: c.border, fontSize: 13 },
+    rolePickerRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
+    roleChip: { backgroundColor: c.bg, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, marginRight: 6, marginBottom: 6, borderWidth: 1, borderColor: c.border },
+    activeRoleChip: { backgroundColor: c.primary, borderColor: c.primary },
+    roleChipText: { color: c.icon, fontSize: 11 },
+    activeRoleChipText: { color: '#FFF', fontWeight: '700' },
+    switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
+    modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 22, alignItems: 'center' },
+    cancelModalBtn: { paddingHorizontal: 16, paddingVertical: 10, marginRight: 8 },
+    cancelText: { color: c.icon, fontWeight: '600' },
+    saveModalBtn: { backgroundColor: c.primary, paddingHorizontal: 22, paddingVertical: 10, borderRadius: 8 },
+    saveText: { color: '#FFF', fontWeight: '700' },
 
-  // Security View
-  restrictedContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  lockIcon: { fontSize: 44, marginBottom: 16 },
-  restrictedTitle: { color: '#FFF', fontSize: 20, fontWeight: '700', marginBottom: 8 },
-  restrictedText: { color: '#8D96AA', fontSize: 13, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
-  goBackBtn: { backgroundColor: '#FF7622', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
-  goBackText: { color: '#FFF', fontWeight: '700', fontSize: 14 },
-});
+    // Security View
+    restrictedContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+    lockIcon: { fontSize: 44, marginBottom: 16 },
+    restrictedTitle: { color: c.text, fontSize: 20, fontWeight: '700', marginBottom: 8 },
+    restrictedText: { color: c.icon, fontSize: 13, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+    goBackBtn: { backgroundColor: c.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+    goBackText: { color: '#FFF', fontWeight: '700', fontSize: 14 },
+  });
 
 export default EmployeeCrudScreen;

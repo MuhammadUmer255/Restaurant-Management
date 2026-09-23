@@ -1,21 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
   View,
-  SafeAreaView,
   TextInput,
   TouchableOpacity,
+  StatusBar,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { validateEmail, validatePassword, getPasswordErrorMessage } from '../utils/authValidation';
 import Toast from '../components/Toast';
+import { useTheme } from '../context/ThemeContext';
 
 export default function RegisterScreen({ navigation }) {
+  const { isDark, colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   // Mode: 'admin' (Register Restaurant) | 'user' (Register Staff / User)
   const [selectedRole, setSelectedRole] = useState('admin');
 
@@ -108,7 +113,13 @@ export default function RegisterScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.bg}
+        translucent={false}
+      />
+
       {/* Top Floating Toast */}
       <Toast
         visible={toastConfig.visible}
@@ -122,10 +133,10 @@ export default function RegisterScreen({ navigation }) {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          
+
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="chevron-back-outline" size={16} color="#FF7622" />
+              <Ionicons name="chevron-back-outline" size={16} color={colors.primary} />
               <Text style={styles.backText}>Back to Login</Text>
             </View>
           </TouchableOpacity>
@@ -135,7 +146,7 @@ export default function RegisterScreen({ navigation }) {
               <Ionicons
                 name={selectedRole === 'admin' ? 'business-outline' : 'person-add-outline'}
                 size={26}
-                color="#FF7622"
+                color={colors.primary}
                 style={{ marginRight: 8 }}
               />
               <Text style={styles.title}>
@@ -163,7 +174,7 @@ export default function RegisterScreen({ navigation }) {
                 <Ionicons
                   name="shield-checkmark-outline"
                   size={15}
-                  color={selectedRole === 'admin' ? '#FFFFFF' : '#8D96AA'}
+                  color={selectedRole === 'admin' ? '#FFFFFF' : colors.icon}
                   style={{ marginRight: 6 }}
                 />
                 <Text
@@ -189,7 +200,7 @@ export default function RegisterScreen({ navigation }) {
                 <Ionicons
                   name="person-outline"
                   size={15}
-                  color={selectedRole === 'user' ? '#FFFFFF' : '#8D96AA'}
+                  color={selectedRole === 'user' ? '#FFFFFF' : colors.icon}
                   style={{ marginRight: 6 }}
                 />
                 <Text
@@ -212,7 +223,7 @@ export default function RegisterScreen({ navigation }) {
                 <TextInput
                   style={[styles.input, restaurantNameError ? styles.inputErrorBorder : null]}
                   placeholder="e.g. Gourmet Bistro"
-                  placeholderTextColor="#778197"
+                  placeholderTextColor={colors.muted}
                   value={restaurantName}
                   onChangeText={(text) => {
                     setRestaurantName(text);
@@ -225,7 +236,7 @@ export default function RegisterScreen({ navigation }) {
                 <TextInput
                   style={[styles.input, emailError ? styles.inputErrorBorder : null]}
                   placeholder="admin@gourmetbistro.com"
-                  placeholderTextColor="#778197"
+                  placeholderTextColor={colors.muted}
                   value={email}
                   onChangeText={(text) => {
                     setEmail(text);
@@ -243,7 +254,7 @@ export default function RegisterScreen({ navigation }) {
                 <TextInput
                   style={[styles.input, fullNameError ? styles.inputErrorBorder : null]}
                   placeholder="e.g. Alex Johnson"
-                  placeholderTextColor="#778197"
+                  placeholderTextColor={colors.muted}
                   value={fullName}
                   onChangeText={(text) => {
                     setFullName(text);
@@ -256,7 +267,7 @@ export default function RegisterScreen({ navigation }) {
                 <TextInput
                   style={[styles.input, emailError ? styles.inputErrorBorder : null]}
                   placeholder="staff@gourmetbistro.com"
-                  placeholderTextColor="#778197"
+                  placeholderTextColor={colors.muted}
                   value={email}
                   onChangeText={(text) => {
                     setEmail(text);
@@ -297,7 +308,7 @@ export default function RegisterScreen({ navigation }) {
             <TextInput
               style={[styles.input, passwordError ? styles.inputErrorBorder : null]}
               placeholder="Min 8 chars (e.g. Password@123)"
-              placeholderTextColor="#778197"
+              placeholderTextColor={colors.muted}
               value={password}
               onChangeText={(text) => {
                 setPassword(text);
@@ -311,7 +322,7 @@ export default function RegisterScreen({ navigation }) {
             <TextInput
               style={[styles.input, confirmPasswordError ? styles.inputErrorBorder : null]}
               placeholder="Re-enter password"
-              placeholderTextColor="#778197"
+              placeholderTextColor={colors.muted}
               value={confirmPassword}
               onChangeText={(text) => {
                 setConfirmPassword(text);
@@ -345,107 +356,108 @@ export default function RegisterScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#070E20' },
-  scrollContent: { padding: 20, justifyContent: 'center', flexGrow: 1 },
+const makeStyles = (c) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    scrollContent: { padding: 20, justifyContent: 'center', flexGrow: 1 },
 
-  backBtn: { marginBottom: 16 },
-  backText: { color: '#FF7622', fontWeight: '700', fontSize: 14 },
+    backBtn: { marginBottom: 16 },
+    backText: { color: c.primary, fontWeight: '700', fontSize: 14 },
 
-  headerContainer: { marginBottom: 20 },
-  title: { color: '#FFFFFF', fontSize: 24, fontWeight: '800' },
-  subtitle: { color: '#7D879D', fontSize: 13, lineHeight: 18, marginTop: 4 },
+    headerContainer: { marginBottom: 20 },
+    title: { color: c.text, fontSize: 24, fontWeight: '800' },
+    subtitle: { color: c.muted, fontSize: 13, lineHeight: 18, marginTop: 4 },
 
-  /* Role Switcher Tabs */
-  roleToggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#0D162C',
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: '#202D49',
-  },
-  roleTab: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  roleTabActive: {
-    backgroundColor: '#FF7622',
-  },
-  tabContentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  roleTabText: {
-    color: '#8D96AA',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  roleTabTextActive: {
-    color: '#FFFFFF',
-  },
+    /* Role Switcher Tabs */
+    roleToggleContainer: {
+      flexDirection: 'row',
+      backgroundColor: c.card,
+      borderRadius: 12,
+      padding: 4,
+      marginBottom: 18,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    roleTab: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    roleTabActive: {
+      backgroundColor: c.primary,
+    },
+    tabContentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    roleTabText: {
+      color: c.icon,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    roleTabTextActive: {
+      color: '#FFFFFF',
+    },
 
-  formCard: {
-    backgroundColor: '#0D162C',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#202D49',
-  },
-  label: { color: '#8D96AA', fontSize: 12, fontWeight: '600', marginBottom: 6, marginTop: 12 },
-  input: {
-    backgroundColor: '#070E20',
-    color: '#FFF',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#202D49',
-    fontSize: 14,
-  },
-  inputErrorBorder: { borderColor: '#FF526A' },
-  fieldErrorText: { color: '#FF526A', fontSize: 12, marginTop: 4, fontWeight: '500' },
+    formCard: {
+      backgroundColor: c.card,
+      borderRadius: 16,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    label: { color: c.icon, fontSize: 12, fontWeight: '600', marginBottom: 6, marginTop: 12 },
+    input: {
+      backgroundColor: c.bg,
+      color: c.text,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+      fontSize: 14,
+    },
+    inputErrorBorder: { borderColor: c.danger },
+    fieldErrorText: { color: c.danger, fontSize: 12, marginTop: 4, fontWeight: '500' },
 
-  staffRoleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-    marginBottom: 6,
-  },
-  roleChip: {
-    flex: 1,
-    backgroundColor: '#070E20',
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#202D49',
-    alignItems: 'center',
-    marginHorizontal: 3,
-  },
-  activeRoleChip: {
-    borderColor: '#FF7622',
-    backgroundColor: 'rgba(255, 118, 34, 0.15)',
-  },
-  roleChipText: {
-    color: '#8D96AA',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  activeRoleChipText: {
-    color: '#FF7622',
-    fontWeight: '700',
-  },
+    staffRoleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 4,
+      marginBottom: 6,
+    },
+    roleChip: {
+      flex: 1,
+      backgroundColor: c.bg,
+      paddingVertical: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+      alignItems: 'center',
+      marginHorizontal: 3,
+    },
+    activeRoleChip: {
+      borderColor: c.primary,
+      backgroundColor: 'rgba(255, 118, 34, 0.15)',
+    },
+    roleChipText: {
+      color: c.icon,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    activeRoleChipText: {
+      color: c.primary,
+      fontWeight: '700',
+    },
 
-  registerBtn: {
-    backgroundColor: '#FF7622',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 22,
-  },
-  btnDisabled: { opacity: 0.6 },
-  registerBtnText: { color: '#FFF', fontSize: 15, fontWeight: 'bold' },
-});
+    registerBtn: {
+      backgroundColor: c.primary,
+      paddingVertical: 14,
+      borderRadius: 10,
+      alignItems: 'center',
+      marginTop: 22,
+    },
+    btnDisabled: { opacity: 0.6 },
+    registerBtnText: { color: '#FFF', fontSize: 15, fontWeight: 'bold' },
+  });

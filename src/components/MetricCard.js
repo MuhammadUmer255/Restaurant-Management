@@ -1,7 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '../context/ThemeContext'; // NEW
 
 const MetricCard = ({ label, value, subtext, width }) => {
+  const { colors } = useTheme(); // NEW
+  const styles = useMemo(() => makeStyles(colors), [colors]); // NEW
+
   return (
     <View style={[styles.card, { width: width || '48%' }]}>
       <Text style={styles.label}>{label}</Text>
@@ -11,28 +15,29 @@ const MetricCard = ({ label, value, subtext, width }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#161D2F',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#232D42',
-  },
-  label: {
-    color: '#8A94A6',
-    fontSize: 12,
-  },
-  value: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginVertical: 4,
-  },
-  subtext: {
-    color: '#00E676',
-    fontSize: 11,
-  },
-});
+const makeStyles = (c) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: c.card,
+      borderRadius: 12,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    label: {
+      color: c.muted,
+      fontSize: 12,
+    },
+    value: {
+      color: c.text,
+      fontSize: 20,
+      fontWeight: 'bold',
+      marginVertical: 4,
+    },
+    subtext: {
+      color: c.success,
+      fontSize: 11,
+    },
+  });
 
 export default MetricCard;

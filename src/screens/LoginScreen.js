@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -14,11 +14,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { validateEmail } from '../utils/authValidation';
-import Toast from '../components/Toast'; 
+import Toast from '../components/Toast';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
+  const { isDark, colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   // Role Selection State ('user' | 'admin')
   const [selectedRole, setSelectedRole] = useState('user');
@@ -83,7 +86,11 @@ export default function LoginScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.bg}
+        translucent={false}
+      />
 
       {/* Top Floating Toast Notification */}
       <Toast
@@ -121,7 +128,7 @@ export default function LoginScreen({ navigation }) {
                 <Ionicons
                   name="person-outline"
                   size={15}
-                  color={selectedRole === 'user' ? '#FFFFFF' : '#8D96AA'}
+                  color={selectedRole === 'user' ? '#FFFFFF' : colors.icon}
                   style={{ marginRight: 6 }}
                 />
                 <Text
@@ -147,7 +154,7 @@ export default function LoginScreen({ navigation }) {
                 <Ionicons
                   name="shield-checkmark-outline"
                   size={15}
-                  color={selectedRole === 'admin' ? '#FFFFFF' : '#8D96AA'}
+                  color={selectedRole === 'admin' ? '#FFFFFF' : colors.icon}
                   style={{ marginRight: 6 }}
                 />
                 <Text
@@ -174,7 +181,7 @@ export default function LoginScreen({ navigation }) {
                 setEmailError('');
               }}
               placeholder={selectedRole === 'admin' ? 'admin@gourmet.com' : 'user@gourmet.com'}
-              placeholderTextColor="#68738D"
+              placeholderTextColor={colors.muted}
               keyboardType="email-address"
               autoCapitalize="none"
             />
@@ -190,7 +197,7 @@ export default function LoginScreen({ navigation }) {
               }}
               secureTextEntry
               placeholder="Enter your password"
-              placeholderTextColor="#68738D"
+              placeholderTextColor={colors.muted}
             />
             {!!passwordError && <Text style={styles.fieldErrorText}>{passwordError}</Text>}
 
@@ -233,86 +240,87 @@ export default function LoginScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#070E20' },
-  scrollContent: { padding: 20, flexGrow: 1, justifyContent: 'center' },
+const makeStyles = (c) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    scrollContent: { padding: 20, flexGrow: 1, justifyContent: 'center' },
 
-  headerContainer: { marginBottom: 20 },
-  title: { color: '#FFFFFF', fontSize: 28, fontWeight: '800', marginBottom: 6 },
-  subtitle: { color: '#8D96AA', fontSize: 13, lineHeight: 19 },
+    headerContainer: { marginBottom: 20 },
+    title: { color: c.text, fontSize: 28, fontWeight: '800', marginBottom: 6 },
+    subtitle: { color: c.icon, fontSize: 13, lineHeight: 19 },
 
-  roleToggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#0D162C',
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: '#202D49',
-  },
-  roleTab: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  roleTabActive: {
-    backgroundColor: '#FF7622',
-  },
-  tabContentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  roleTabText: {
-    color: '#8D96AA',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  roleTabTextActive: {
-    color: '#FFFFFF',
-  },
+    roleToggleContainer: {
+      flexDirection: 'row',
+      backgroundColor: c.card,
+      borderRadius: 12,
+      padding: 4,
+      marginBottom: 18,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    roleTab: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    roleTabActive: {
+      backgroundColor: c.primary,
+    },
+    tabContentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    roleTabText: {
+      color: c.icon,
+      fontSize: 13,
+      fontWeight: '700',
+    },
+    roleTabTextActive: {
+      color: '#FFFFFF',
+    },
 
-  card: {
-    backgroundColor: '#0D162C',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#202D49',
-  },
+    card: {
+      backgroundColor: c.card,
+      borderRadius: 16,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
 
-  label: { color: '#8D96AA', fontSize: 12, marginBottom: 6, fontWeight: '600', marginTop: 10 },
-  input: {
-    backgroundColor: '#070E20',
-    color: '#FFFFFF',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#202D49',
-    fontSize: 14,
-  },
-  inputErrorBorder: { borderColor: '#FF526A' },
-  fieldErrorText: { color: '#FF526A', fontSize: 12, marginTop: 5, fontWeight: '500' },
+    label: { color: c.icon, fontSize: 12, marginBottom: 6, fontWeight: '600', marginTop: 10 },
+    input: {
+      backgroundColor: c.bg,
+      color: c.text,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: c.border,
+      fontSize: 14,
+    },
+    inputErrorBorder: { borderColor: c.danger },
+    fieldErrorText: { color: c.danger, fontSize: 12, marginTop: 5, fontWeight: '500' },
 
-  forgotBtn: { alignSelf: 'flex-end', marginTop: 10, marginBottom: 10 },
-  forgotText: { color: '#FF7622', fontWeight: '700', fontSize: 13 },
+    forgotBtn: { alignSelf: 'flex-end', marginTop: 10, marginBottom: 10 },
+    forgotText: { color: c.primary, fontWeight: '700', fontSize: 13 },
 
-  primaryBtn: {
-    backgroundColor: '#FF7622',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  btnDisabled: { opacity: 0.6 },
-  btnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
+    primaryBtn: {
+      backgroundColor: c.primary,
+      paddingVertical: 14,
+      borderRadius: 10,
+      alignItems: 'center',
+      marginTop: 10,
+    },
+    btnDisabled: { opacity: 0.6 },
+    btnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
 
-  registerContainer: {
-    flexDirection: 'row',
-    justify: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  registerSubText: { color: '#8D96AA', fontSize: 13 },
-  registerText: { color: '#FF7622', fontWeight: '700', fontSize: 13 },
-});
+    registerContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 20,
+    },
+    registerSubText: { color: c.icon, fontSize: 13 },
+    registerText: { color: c.primary, fontWeight: '700', fontSize: 13 },
+  });

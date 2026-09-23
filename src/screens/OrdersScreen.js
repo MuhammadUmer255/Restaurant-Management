@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import Toast from '../components/Toast'; 
+import Toast from '../components/Toast';
+import { useTheme } from '../context/ThemeContext';
 
 const INITIAL_ORDERS = [
   {
@@ -56,6 +57,9 @@ const INITIAL_ORDERS = [
 const STATUS_FILTERS = ['All', 'Pending', 'In Kitchen', 'Served', 'Completed'];
 
 export default function OrdersScreen({ navigation }) {
+  const { isDark, colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const [orders, setOrders] = useState(INITIAL_ORDERS);
   const [selectedFilter, setSelectedFilter] = useState('All');
 
@@ -114,7 +118,11 @@ export default function OrdersScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.bg}
+        translucent={false}
+      />
 
       {/* Top Floating Toast */}
       <Toast
@@ -181,7 +189,7 @@ export default function OrdersScreen({ navigation }) {
               <View style={styles.statusBadgeWrapper}>
                 <StatusBadge status={item.status} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                  <Ionicons name="time-outline" size={11} color="#8A94A6" style={{ marginRight: 3 }} />
+                  <Ionicons name="time-outline" size={11} color={colors.muted} style={{ marginRight: 3 }} />
                   <Text style={styles.timeText}>{item.time}</Text>
                 </View>
               </View>
@@ -236,7 +244,7 @@ export default function OrdersScreen({ navigation }) {
               ) : (
                 <View style={styles.completedBadge}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Ionicons name="checkmark-circle-outline" size={14} color="#35D49B" style={{ marginRight: 4 }} />
+                    <Ionicons name="checkmark-circle-outline" size={14} color={colors.success} style={{ marginRight: 4 }} />
                     <Text style={styles.completedText}>Order Paid</Text>
                   </View>
                 </View>
@@ -250,84 +258,85 @@ export default function OrdersScreen({ navigation }) {
 }
 
 function StatusBadge({ status }) {
-  let bg = '#12382E';
-  let color = '#35D49B';
+  const { colors } = useTheme();
+
+  let bg = 'rgba(53, 212, 155, 0.15)';
+  let color = colors.success;
 
   if (status === 'Pending') {
-    bg = '#3B2D12';
-    color = '#F5AE22';
+    bg = 'rgba(245, 174, 34, 0.15)';
+    color = colors.warning;
   } else if (status === 'In Kitchen') {
-    bg = '#102A45';
+    bg = 'rgba(33, 150, 243, 0.15)';
     color = '#2196F3';
   } else if (status === 'Served') {
-    bg = '#3A1822';
-    color = '#FF526A';
+    bg = 'rgba(255, 82, 106, 0.15)';
+    color = colors.danger;
   }
 
   return (
-    <View style={[styles.badge, { backgroundColor: bg }]}>
-      <Text style={[styles.badgeText, { color }]}>● {status}</Text>
+    <View style={{ backgroundColor: bg, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+      <Text style={{ color, fontSize: 11, fontWeight: '700' }}>● {status}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#070E20' },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? 8 : 12,
-    paddingBottom: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  title: { color: '#FFF', fontSize: 22, fontWeight: 'bold' },
-  subtitle: { color: '#7D879D', fontSize: 12, marginTop: 2 },
-  newOrderBtn: { backgroundColor: '#FF7622', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  newOrderText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
-  filterWrapper: { marginBottom: 10 },
-  filterRow: { paddingHorizontal: 16 },
-  filterChip: {
-    backgroundColor: '#101A31',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#202D49',
-  },
-  activeFilterChip: { backgroundColor: '#FF7622', borderColor: '#FF7622' },
-  filterText: { color: '#8D96AA', fontSize: 12, fontWeight: '600' },
-  activeFilterText: { color: '#FFF', fontWeight: 'bold' },
-  listContainer: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 30 },
-  orderCard: {
-    backgroundColor: '#0D162C',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#202D49',
-  },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  tableText: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
-  orderIdText: { color: '#7E879B', fontSize: 12, marginTop: 2 },
-  statusBadgeWrapper: { alignItems: 'flex-end' },
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  badgeText: { fontSize: 11, fontWeight: '700' },
-  timeText: { color: '#7E879B', fontSize: 10 },
-  divider: { height: 1, backgroundColor: '#202D49', marginVertical: 12 },
-  itemsList: { marginVertical: 2 },
-  itemRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 4 },
-  itemQty: { color: '#FF7622', fontWeight: 'bold', width: 28 },
-  itemName: { color: '#D9DDE7', flex: 1, fontSize: 13, paddingRight: 8 },
-  itemPrice: { color: '#FFF', fontWeight: '600', fontSize: 13 },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
-  totalLabel: { color: '#7E879B', fontSize: 10 },
-  totalValue: { color: '#35D49B', fontSize: 18, fontWeight: 'bold' },
-  actionBtn: { backgroundColor: '#101A31', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#25334F' },
-  actionBtnText: { color: '#FF7622', fontWeight: 'bold', fontSize: 12 },
-  checkoutBtn: { backgroundColor: '#FF7622', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
-  checkoutBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
-  completedBadge: { backgroundColor: '#12382E', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
-  completedText: { color: '#35D49B', fontWeight: '600', fontSize: 12 },
-});
+const makeStyles = (c) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    header: {
+      paddingHorizontal: 16,
+      paddingTop: Platform.OS === 'android' ? 8 : 12,
+      paddingBottom: 16,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    title: { color: c.text, fontSize: 22, fontWeight: 'bold' },
+    subtitle: { color: c.muted, fontSize: 12, marginTop: 2 },
+    newOrderBtn: { backgroundColor: c.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
+    newOrderText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
+    filterWrapper: { marginBottom: 10 },
+    filterRow: { paddingHorizontal: 16 },
+    filterChip: {
+      backgroundColor: c.chip,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      marginRight: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    activeFilterChip: { backgroundColor: c.primary, borderColor: c.primary },
+    filterText: { color: c.icon, fontSize: 12, fontWeight: '600' },
+    activeFilterText: { color: '#FFF', fontWeight: 'bold' },
+    listContainer: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 30 },
+    orderCard: {
+      backgroundColor: c.card,
+      borderRadius: 14,
+      padding: 16,
+      marginBottom: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+    tableText: { color: c.text, fontSize: 18, fontWeight: 'bold' },
+    orderIdText: { color: c.muted, fontSize: 12, marginTop: 2 },
+    statusBadgeWrapper: { alignItems: 'flex-end' },
+    timeText: { color: c.muted, fontSize: 10 },
+    divider: { height: 1, backgroundColor: c.border, marginVertical: 12 },
+    itemsList: { marginVertical: 2 },
+    itemRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 4 },
+    itemQty: { color: c.primary, fontWeight: 'bold', width: 28 },
+    itemName: { color: c.label, flex: 1, fontSize: 13, paddingRight: 8 },
+    itemPrice: { color: c.text, fontWeight: '600', fontSize: 13 },
+    cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
+    totalLabel: { color: c.muted, fontSize: 10 },
+    totalValue: { color: c.success, fontSize: 18, fontWeight: 'bold' },
+    actionBtn: { backgroundColor: c.chip, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: c.border },
+    actionBtnText: { color: c.primary, fontWeight: 'bold', fontSize: 12 },
+    checkoutBtn: { backgroundColor: c.primary, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
+    checkoutBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
+    completedBadge: { backgroundColor: 'rgba(53, 212, 155, 0.15)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
+    completedText: { color: c.success, fontWeight: '600', fontSize: 12 },
+  });

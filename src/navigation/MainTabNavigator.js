@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 // Screens
 import DashboardScreen from '../screens/DashboardScreen';
@@ -16,7 +17,8 @@ import BillingScreen from '../screens/BillingScreen';
 const Tab = createBottomTabNavigator();
 
 const MainTabNavigator = ({ route }) => {
-  const { user } = useAuth ? useAuth() : {};
+  const { user } = useAuth();
+  const { colors } = useTheme(); // NEW
   const rawRole = route?.params?.role || user?.role || 'user';
   const isAdmin = String(rawRole).trim().toUpperCase() === 'ADMIN';
 
@@ -25,11 +27,11 @@ const MainTabNavigator = ({ route }) => {
       initialRouteName="Dashboard"
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#FF7622',
-        tabBarInactiveTintColor: '#8D96AA',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.icon,
         tabBarStyle: {
-          backgroundColor: '#070E20',
-          borderTopColor: '#101A31',
+          backgroundColor: colors.bg,
+          borderTopColor: colors.headerBorder,
           height: Platform.OS === 'ios' ? 80 : 68,
           paddingTop: 6,
           paddingBottom: Platform.OS === 'ios' ? 20 : 8,

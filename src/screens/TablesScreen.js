@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,14 +6,14 @@ import {
   StyleSheet,
   ScrollView,
   StatusBar,
-  Platform,
   Modal,
   TextInput,
   TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import Toast from '../components/Toast'; // Aapka Toast component
+import Toast from '../components/Toast';
+import { useTheme } from '../context/ThemeContext';
 
 const INITIAL_TABLES = [
   { id: 'T-01', seats: 2, status: 'Available', zone: 'Indoor Main' },
@@ -27,6 +27,9 @@ const INITIAL_TABLES = [
 const ZONES = ['All', 'Indoor Main', 'Terrace'];
 
 export default function TablesScreen() {
+  const { isDark, colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const [tables, setTables] = useState(INITIAL_TABLES);
   const [selectedZone, setSelectedZone] = useState('All');
   const [selectedTable, setSelectedTable] = useState(null);
@@ -93,7 +96,11 @@ export default function TablesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#070E20" translucent={false} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.bg}
+        translucent={false}
+      />
 
       {/* Floating Toast */}
       <Toast
@@ -107,7 +114,7 @@ export default function TablesScreen() {
       <View style={styles.header}>
         <View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Ionicons name="restaurant-outline" size={18} color="#FF7622" style={{ marginRight: 6 }} />
+            <Ionicons name="restaurant-outline" size={18} color={colors.primary} style={{ marginRight: 6 }} />
             <Text style={styles.logo}>GourmetOS</Text>
           </View>
           <Text style={styles.location}>Select an available table to book</Text>
@@ -154,7 +161,7 @@ export default function TablesScreen() {
                 </View>
 
                 <View style={styles.seatsRow}>
-                  <Ionicons name="people-outline" size={14} color="#858FA5" style={{ marginRight: 4 }} />
+                  <Ionicons name="people-outline" size={14} color={colors.muted} style={{ marginRight: 4 }} />
                   <Text style={styles.seatsText}>{table.seats} Seats</Text>
                 </View>
 
@@ -166,7 +173,7 @@ export default function TablesScreen() {
                 )}
 
                 <View style={styles.actionTag}>
-                  <Text style={[styles.actionTagText, !isAvailable && { color: '#7D879D' }]}>
+                  <Text style={[styles.actionTagText, !isAvailable && { color: colors.muted }]}>
                     {isAvailable ? 'Book Table ›' : 'Unavailable'}
                   </Text>
                 </View>
@@ -205,7 +212,7 @@ export default function TablesScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="Enter your name"
-                  placeholderTextColor="#5C667A"
+                  placeholderTextColor={colors.muted}
                   value={guestName}
                   onChangeText={setGuestName}
                 />
@@ -214,7 +221,7 @@ export default function TablesScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. 20:00 PM"
-                  placeholderTextColor="#5C667A"
+                  placeholderTextColor={colors.muted}
                   value={bookingTime}
                   onChangeText={setBookingTime}
                 />
@@ -245,89 +252,91 @@ export default function TablesScreen() {
 
 // Status Badge Component
 function StatusBadge({ status }) {
-  let background = '#12382E';
-  let color = '#35D49B';
+  const { colors } = useTheme();
+
+  let background = 'rgba(53, 212, 155, 0.15)';
+  let color = colors.success;
 
   if (status === 'Occupied') {
-    background = '#3A1822';
-    color = '#FF526A';
+    background = 'rgba(255, 82, 106, 0.15)';
+    color = colors.danger;
   } else if (status === 'Reserved') {
-    background = '#3B2D12';
-    color = '#F5AE22';
+    background = 'rgba(245, 174, 34, 0.15)';
+    color = colors.warning;
   }
 
   return (
-    <View style={[styles.badge, { backgroundColor: background }]}>
+    <View style={{ backgroundColor: background, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6 }}>
       <Text style={{ color, fontSize: 10, fontWeight: '700' }}>● {status}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#070E20' },
-  header: { paddingHorizontal: 20, paddingVertical: 14 },
-  logo: { color: '#FFFFFF', fontSize: 22, fontWeight: '800' },
-  location: { color: '#7D879D', fontSize: 12, marginTop: 4 },
+const makeStyles = (c) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    header: { paddingHorizontal: 20, paddingVertical: 14 },
+    logo: { color: c.text, fontSize: 22, fontWeight: '800' },
+    location: { color: c.muted, fontSize: 12, marginTop: 4 },
 
-  floorTabs: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 12 },
-  tab: { backgroundColor: '#101A31', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, marginRight: 8 },
-  activeTab: { backgroundColor: '#FF7622' },
-  tabText: { color: '#8D96AA', fontSize: 13 },
-  activeTabText: { color: '#FFFFFF', fontWeight: '700' },
+    floorTabs: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 12 },
+    tab: { backgroundColor: c.chip, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, marginRight: 8 },
+    activeTab: { backgroundColor: c.primary },
+    tabText: { color: c.icon, fontSize: 13 },
+    activeTabText: { color: '#FFFFFF', fontWeight: '700' },
 
-  content: { padding: 16, paddingBottom: 40 },
-  sectionTitle: { color: '#7D879D', fontSize: 13, fontWeight: '700', marginBottom: 12 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+    content: { padding: 16, paddingBottom: 40 },
+    sectionTitle: { color: c.muted, fontSize: 13, fontWeight: '700', marginBottom: 12 },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
 
-  // Table Card
-  tableCard: {
-    width: '48%',
-    backgroundColor: '#0D162C',
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#202D49',
-    marginBottom: 12,
-  },
-  disabledCard: { opacity: 0.6 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  tableNumber: { color: '#FFFFFF', fontSize: 18, fontWeight: '800' },
-  badge: { paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6 },
-  seatsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
-  seatsText: { color: '#858FA5', fontSize: 12 },
-  reservedByText: { color: '#F5AE22', fontSize: 11, marginTop: 6, fontWeight: '600' },
-  actionTag: { marginTop: 12 },
-  actionTagText: { color: '#FF7622', fontSize: 11, fontWeight: '700' },
+    // Table Card
+    tableCard: {
+      width: '48%',
+      backgroundColor: c.card,
+      borderRadius: 16,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      marginBottom: 12,
+    },
+    disabledCard: { opacity: 0.6 },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    tableNumber: { color: c.text, fontSize: 18, fontWeight: '800' },
+    seatsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
+    seatsText: { color: c.muted, fontSize: 12 },
+    reservedByText: { color: c.warning, fontSize: 11, marginTop: 6, fontWeight: '600' },
+    actionTag: { marginTop: 12 },
+    actionTagText: { color: c.primary, fontSize: 11, fontWeight: '700' },
 
-  // Modal Styles
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#0D162C', borderRadius: 18, borderWidth: 1, borderColor: '#25334F', padding: 20 },
-  modalHeader: { marginBottom: 10 },
-  modalTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '800' },
-  modalSubtitle: { color: '#7F899F', fontSize: 12, marginTop: 4 },
-  divider: { height: 1, backgroundColor: '#202D49', marginVertical: 14 },
+    // Modal Styles
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', padding: 20 },
+    modalContent: { backgroundColor: c.card, borderRadius: 18, borderWidth: 1, borderColor: c.border, padding: 20 },
+    modalHeader: { marginBottom: 10 },
+    modalTitle: { color: c.text, fontSize: 20, fontWeight: '800' },
+    modalSubtitle: { color: c.muted, fontSize: 12, marginTop: 4 },
+    divider: { height: 1, backgroundColor: c.border, marginVertical: 14 },
 
-  label: { color: '#8D96AA', fontSize: 12, fontWeight: '700', marginBottom: 6 },
-  input: {
-    backgroundColor: '#101A31',
-    borderWidth: 1,
-    borderColor: '#202D49',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#FFFFFF',
-    fontSize: 14,
-    marginBottom: 14,
-  },
+    label: { color: c.icon, fontSize: 12, fontWeight: '700', marginBottom: 6 },
+    input: {
+      backgroundColor: c.chip,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      color: c.text,
+      fontSize: 14,
+      marginBottom: 14,
+    },
 
-  bookButton: {
-    backgroundColor: '#FF7622',
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  bookButtonText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
-  cancelBtn: { alignItems: 'center', marginTop: 12, paddingVertical: 6 },
-  cancelText: { color: '#7D879D', fontSize: 13, fontWeight: '600' },
-});
+    bookButton: {
+      backgroundColor: c.primary,
+      borderRadius: 12,
+      paddingVertical: 12,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    bookButtonText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
+    cancelBtn: { alignItems: 'center', marginTop: 12, paddingVertical: 6 },
+    cancelText: { color: c.muted, fontSize: 13, fontWeight: '600' },
+  });
