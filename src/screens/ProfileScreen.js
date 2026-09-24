@@ -8,6 +8,8 @@ import {
   StatusBar,
   Switch,
   Platform,
+  Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -26,6 +28,7 @@ export default function ProfileScreen({ navigation }) {
 
   // Toggle states
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [logoutVisible, setLogoutVisible] = useState(false);
 
   // Toast State
   const [toastConfig, setToastConfig] = useState({
@@ -42,11 +45,18 @@ export default function ProfileScreen({ navigation }) {
     setToastConfig((prev) => ({ ...prev, visible: false }));
   };
 
+  // Logout button dabane par pehle confirmation dialog khulega
   const handleLogout = () => {
-    showToast('Logging out...', 'info');
+    setLogoutVisible(true);
+  };
+
+  // "Yes, Logout" dabane par toast dikhao, phir logout karo
+  const confirmLogout = () => {
+    setLogoutVisible(false);
+    showToast('Logged out successfully', 'success');
     setTimeout(() => {
       logout();
-    }, 600);
+    }, 1500);
   };
 
   return (
@@ -230,6 +240,49 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Logout Confirmation Dialog */}
+      <Modal
+        visible={logoutVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setLogoutVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.dialogOverlay}
+          activeOpacity={1}
+          onPress={() => setLogoutVisible(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={styles.dialogCard}>
+              <View style={styles.dialogIconCircle}>
+                <Ionicons name="log-out-outline" size={26} color={colors.danger} />
+              </View>
+              <Text style={styles.dialogTitle}>Logout?</Text>
+              <Text style={styles.dialogMessage}>
+                Are you sure you want to logout from your account?
+              </Text>
+
+              <View style={styles.dialogActions}>
+                <TouchableOpacity
+                  style={styles.dialogCancelBtn}
+                  onPress={() => setLogoutVisible(false)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.dialogCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.dialogConfirmBtn}
+                  onPress={confirmLogout}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.dialogConfirmText}>Yes, Logout</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -323,4 +376,61 @@ const makeStyles = (c) =>
       marginTop: 6,
     },
     logoutText: { color: c.danger, fontSize: 14, fontWeight: '700' },
+
+    // Logout dialog
+    dialogOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.65)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+    },
+    dialogCard: {
+      width: '100%',
+      backgroundColor: c.card,
+      borderRadius: 20,
+      padding: 22,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    dialogIconCircle: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: 'rgba(255, 82, 106, 0.15)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 14,
+    },
+    dialogTitle: { color: c.text, fontSize: 19, fontWeight: '800' },
+    dialogMessage: {
+      color: c.muted,
+      fontSize: 13,
+      textAlign: 'center',
+      lineHeight: 19,
+      marginTop: 6,
+      marginBottom: 20,
+    },
+    dialogActions: { flexDirection: 'row', width: '100%' },
+    dialogCancelBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 12,
+      alignItems: 'center',
+      backgroundColor: c.chip,
+      borderWidth: 1,
+      borderColor: c.border,
+      marginRight: 8,
+    },
+    dialogCancelText: { color: c.label, fontWeight: '700', fontSize: 14 },
+    dialogConfirmBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 12,
+      alignItems: 'center',
+      backgroundColor: c.danger,
+      marginLeft: 8,
+    },
+    dialogConfirmText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
   });

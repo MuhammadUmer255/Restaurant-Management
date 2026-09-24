@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { validateEmail, validatePassword, getPasswordErrorMessage } from '../utils/authValidation';
 import Toast from '../components/Toast';
+import PasswordField from '../components/PasswordField';
 import { useTheme } from '../context/ThemeContext';
 
 export default function RegisterScreen({ navigation }) {
@@ -305,7 +306,7 @@ export default function RegisterScreen({ navigation }) {
             )}
 
             <Text style={styles.label}>Password</Text>
-            <TextInput
+            <PasswordField
               style={[styles.input, passwordError ? styles.inputErrorBorder : null]}
               placeholder="Min 8 chars (e.g. Password@123)"
               placeholderTextColor={colors.muted}
@@ -313,13 +314,11 @@ export default function RegisterScreen({ navigation }) {
               onChangeText={(text) => {
                 setPassword(text);
                 setPasswordError('');
-              }}
-              secureTextEntry
-            />
+              }}/>
             {!!passwordError && <Text style={styles.fieldErrorText}>{passwordError}</Text>}
 
             <Text style={styles.label}>Confirm Password</Text>
-            <TextInput
+            <PasswordField
               style={[styles.input, confirmPasswordError ? styles.inputErrorBorder : null]}
               placeholder="Re-enter password"
               placeholderTextColor={colors.muted}
@@ -327,9 +326,7 @@ export default function RegisterScreen({ navigation }) {
               onChangeText={(text) => {
                 setConfirmPassword(text);
                 setConfirmPasswordError('');
-              }}
-              secureTextEntry
-            />
+              }}/>
             {!!confirmPasswordError && <Text style={styles.fieldErrorText}>{confirmPasswordError}</Text>}
 
             <TouchableOpacity

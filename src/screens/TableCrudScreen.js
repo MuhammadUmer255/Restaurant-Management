@@ -11,6 +11,7 @@ import {
   FlatList,
   StatusBar,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -68,9 +69,11 @@ export default function TableCrudScreen({ route, navigation }) {
   };
 
   // Filter Tables
-  const filteredTables = tables.filter(
-    (t) => selectedArea === 'All' || t.area === selectedArea
-  );
+  const filteredTables = useMemo(() => {
+    return tables.filter(
+      (t) => selectedArea === 'All' || t.area === selectedArea
+    );
+  }, [tables, selectedArea]);
 
   // 1. User taps a Table Card
   const handleTablePress = (table) => {
@@ -225,7 +228,7 @@ export default function TableCrudScreen({ route, navigation }) {
 
         <View style={styles.roleBadgeContainer}>
           <Text style={styles.roleBadgeText}>
-            {isAdmin ? '⚡ Admin Mode' : ' Customer View'}
+            {isAdmin ? '⚡ Admin Mode' : 'Customer View'}
           </Text>
         </View>
       </View>
@@ -288,6 +291,11 @@ export default function TableCrudScreen({ route, navigation }) {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 40 }}>
+            No tables found.
+          </Text>
+        }
         renderItem={({ item }) => {
           const statusColors = getStatusStyle(item.status);
           return (
@@ -433,78 +441,83 @@ export default function TableCrudScreen({ route, navigation }) {
           transparent
           onRequestClose={() => setFormModalVisible(false)}
         >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setFormModalVisible(false)}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
           >
-            <TouchableWithoutFeedback>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>
-                  {currentAction === 'EDIT' ? 'Edit Table' : 'Add New Table'}
-                </Text>
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => setFormModalVisible(false)}
+            >
+              <TouchableWithoutFeedback>
+                <View style={styles.modalContent}>
+                  <Text style={styles.modalTitle}>
+                    {currentAction === 'EDIT' ? 'Edit Table' : 'Add New Table'}
+                  </Text>
 
-                <Text style={styles.label}>Table Name / Number</Text>
-                <TextInput
-                  style={styles.input}
-                  value={tableNumber}
-                  onChangeText={setTableNumber}
-                  placeholder="e.g. Table 5"
-                  placeholderTextColor={colors.muted}
-                />
+                  <Text style={styles.label}>Table Name / Number</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={tableNumber}
+                    onChangeText={setTableNumber}
+                    placeholder="e.g. Table 5"
+                    placeholderTextColor={colors.muted}
+                  />
 
-                <Text style={styles.label}>Capacity (Seats)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={seats}
-                  onChangeText={setSeats}
-                  keyboardType="numeric"
-                  placeholder="4"
-                  placeholderTextColor={colors.muted}
-                />
+                  <Text style={styles.label}>Capacity (Seats)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={seats}
+                    onChangeText={setSeats}
+                    keyboardType="numeric"
+                    placeholder="4"
+                    placeholderTextColor={colors.muted}
+                  />
 
-                <Text style={styles.label}>Area Section</Text>
-                <View style={styles.chipRow}>
-                  {AREAS.filter((a) => a !== 'All').map((a) => (
-                    <TouchableOpacity
-                      key={a}
-                      style={[
-                        styles.chip,
-                        area === a && styles.activeChip,
-                      ]}
-                      onPress={() => setArea(a)}
-                      activeOpacity={0.7}
-                    >
-                      <Text
+                  <Text style={styles.label}>Area Section</Text>
+                  <View style={styles.chipRow}>
+                    {AREAS.filter((a) => a !== 'All').map((a) => (
+                      <TouchableOpacity
+                        key={a}
                         style={[
-                          styles.chipText,
-                          area === a && styles.activeChipText,
+                          styles.chip,
+                          area === a && styles.activeChip,
                         ]}
+                        onPress={() => setArea(a)}
+                        activeOpacity={0.7}
                       >
-                        {a}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                        <Text
+                          style={[
+                            styles.chipText,
+                            area === a && styles.activeChipText,
+                          ]}
+                        >
+                          {a}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
 
-                <View style={styles.modalActions}>
-                  <TouchableOpacity
-                    style={styles.cancelModalBtn}
-                    onPress={() => setFormModalVisible(false)}
-                  >
-                    <Text style={styles.cancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.saveModalBtn}
-                    onPress={handleSaveTable}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.saveText}>Save Table</Text>
-                  </TouchableOpacity>
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity
+                      style={styles.cancelModalBtn}
+                      onPress={() => setFormModalVisible(false)}
+                    >
+                      <Text style={styles.cancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.saveModalBtn}
+                      onPress={handleSaveTable}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.saveText}>Save Table</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            </TouchableWithoutFeedback>
-          </TouchableOpacity>
+              </TouchableWithoutFeedback>
+            </TouchableOpacity>
+          </KeyboardAvoidingView>
         </Modal>
       )}
     </SafeAreaView>
@@ -517,7 +530,7 @@ const makeStyles = (c) =>
 
     topBar: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
+      justify: 'space-between',
       alignItems: 'center',
       paddingHorizontal: 16,
       paddingTop: Platform.OS === 'android' ? 8 : 0,

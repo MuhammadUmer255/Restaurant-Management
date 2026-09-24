@@ -11,11 +11,14 @@ import {
   FlatList,
   StatusBar,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import Toast from '../components/Toast';
+import { formatCurrency } from '../utils/currency';
 
 const INITIAL_MENU = [
   { id: '1', name: 'Zinger Burger', price: '550', category: 'Fast Food', available: true },
@@ -155,25 +158,31 @@ export default function MenuCrudScreen({ route, navigation }) {
       return;
     }
 
+    const cleanPrice = dishPrice.replace(/[^0-9.]/g, '');
+    if (!cleanPrice || parseFloat(cleanPrice) <= 0) {
+      showToast('Please enter a valid positive price.', 'error');
+      return;
+    }
+
     if (currentAction === 'EDIT' && selectedDish) {
       setMenuItems((prev) =>
         prev.map((d) =>
           d.id === selectedDish.id
-            ? { ...d, name: dishName, price: dishPrice, category: dishCategory }
+            ? { ...d, name: dishName.trim(), price: cleanPrice, category: dishCategory }
             : d
         )
       );
-      showToast(`${dishName} updated successfully!`, 'success');
+      showToast(`${dishName.trim()} updated successfully!`, 'success');
     } else {
       const newDish = {
         id: Date.now().toString(),
-        name: dishName,
-        price: dishPrice,
+        name: dishName.trim(),
+        price: cleanPrice,
         category: dishCategory,
         available: true,
       };
       setMenuItems((prev) => [newDish, ...prev]);
-      showToast(`${dishName} added to menu!`, 'success');
+      showToast(`${dishName.trim()} added to menu!`, 'success');
     }
 
     setFormModalVisible(false);
@@ -188,7 +197,6 @@ export default function MenuCrudScreen({ route, navigation }) {
         translucent={false}
       />
 
-      {/* Top Floating Toast */}
       <Toast
         visible={toastConfig.visible}
         message={toastConfig.message}
@@ -203,7 +211,10 @@ export default function MenuCrudScreen({ route, navigation }) {
           style={styles.backBtn}
           activeOpacity={0.7}
         >
-          <Text style={styles.backText}>‹ Back</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="chevron-back-outline" size={16} color={colors.primary} />
+            <Text style={styles.backText}>Back</Text>
+          </View>
         </TouchableOpacity>
 
         <View style={styles.roleBadgeContainer}>
@@ -230,7 +241,10 @@ export default function MenuCrudScreen({ route, navigation }) {
             onPress={openAddModal}
             activeOpacity={0.8}
           >
-            <Text style={styles.addBtnText}>+ Add Dish</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="add-outline" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
+              <Text style={styles.addBtnText}>Add Dish</Text>
+            </View>
           </TouchableOpacity>
         )}
       </View>
@@ -271,6 +285,11 @@ export default function MenuCrudScreen({ route, navigation }) {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 40, fontStyle: 'italic' }}>
+            No dishes found in "{selectedCategory}".
+          </Text>
+        }
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.card}
@@ -299,17 +318,20 @@ export default function MenuCrudScreen({ route, navigation }) {
                       { color: item.available ? colors.success : colors.danger },
                     ]}
                   >
-                    {item.available ? 'In Stock' : 'Out of Stock'}
+                    {item.available ? '● In Stock' : '● Out of Stock'}
                   </Text>
                 </View>
               </View>
               <Text style={styles.categoryText}>Category: {item.category}</Text>
-              <Text style={styles.priceText}>Rs. {item.price}</Text>
+              <Text style={styles.priceText}>{formatCurrency(item.price)}</Text>
             </View>
 
             {isAdmin && (
               <View style={styles.tapIndicator}>
-                <Text style={styles.tapIndicatorText}>Manage ›</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.tapIndicatorText}>Manage</Text>
+                  <Ionicons name="chevron-forward-outline" size={12} color={colors.primary} style={{ marginLeft: 2 }} />
+                </View>
               </View>
             )}
           </TouchableOpacity>
@@ -341,7 +363,10 @@ export default function MenuCrudScreen({ route, navigation }) {
                   onPress={() => handleSelectAction('EDIT')}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.editOptionText}>Edit Dish Details</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="create-outline" size={16} color={colors.success} style={{ marginRight: 8 }} />
+                    <Text style={styles.editOptionText}>Edit Dish Details</Text>
+                  </View>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -349,9 +374,12 @@ export default function MenuCrudScreen({ route, navigation }) {
                   onPress={() => handleSelectAction('TOGGLE_AVAILABILITY')}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.toggleOptionText}>
-                    Toggle Availability ({selectedDish?.available ? 'Mark Out of Stock' : 'Mark In Stock'})
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="swap-horizontal-outline" size={16} color={colors.warning} style={{ marginRight: 8 }} />
+                    <Text style={styles.toggleOptionText}>
+                      Toggle Availability ({selectedDish?.available ? 'Mark Out of Stock' : 'Mark In Stock'})
+                    </Text>
+                  </View>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -359,7 +387,10 @@ export default function MenuCrudScreen({ route, navigation }) {
                   onPress={() => handleSelectAction('DELETE')}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.deleteOptionText}>Delete Dish</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="trash-outline" size={16} color={colors.danger} style={{ marginRight: 8 }} />
+                    <Text style={styles.deleteOptionText}>Delete Dish</Text>
+                  </View>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -430,73 +461,78 @@ export default function MenuCrudScreen({ route, navigation }) {
             activeOpacity={1}
             onPress={() => setFormModalVisible(false)}
           >
-            <TouchableWithoutFeedback>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>
-                  {currentAction === 'EDIT' ? 'Edit Dish' : 'Add New Dish'}
-                </Text>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={{ width: '100%' }}
+            >
+              <TouchableWithoutFeedback>
+                <View style={styles.modalContent}>
+                  <Text style={styles.modalTitle}>
+                    {currentAction === 'EDIT' ? 'Edit Dish' : 'Add New Dish'}
+                  </Text>
 
-                <Text style={styles.label}>Dish Name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={dishName}
-                  onChangeText={setDishName}
-                  placeholder="e.g. Zinger Burger"
-                  placeholderTextColor={colors.muted}
-                />
+                  <Text style={styles.label}>Dish Name</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={dishName}
+                    onChangeText={setDishName}
+                    placeholder="e.g. Zinger Burger"
+                    placeholderTextColor={colors.muted}
+                  />
 
-                <Text style={styles.label}>Price (Rs.)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={dishPrice}
-                  onChangeText={setDishPrice}
-                  keyboardType="numeric"
-                  placeholder="550"
-                  placeholderTextColor={colors.muted}
-                />
+                  <Text style={styles.label}>Price (Rs.)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={dishPrice}
+                    onChangeText={(val) => setDishPrice(val.replace(/[^0-9.]/g, ''))}
+                    keyboardType="numeric"
+                    placeholder="550"
+                    placeholderTextColor={colors.muted}
+                  />
 
-                <Text style={styles.label}>Category</Text>
-                <View style={styles.chipRow}>
-                  {CATEGORIES.filter((c) => c !== 'All').map((c) => (
-                    <TouchableOpacity
-                      key={c}
-                      style={[
-                        styles.chip,
-                        dishCategory === c && styles.activeChip,
-                      ]}
-                      onPress={() => setDishCategory(c)}
-                      activeOpacity={0.7}
-                    >
-                      <Text
+                  <Text style={styles.label}>Category</Text>
+                  <View style={styles.chipRow}>
+                    {CATEGORIES.filter((c) => c !== 'All').map((c) => (
+                      <TouchableOpacity
+                        key={c}
                         style={[
-                          styles.chipText,
-                          dishCategory === c && styles.activeChipText,
+                          styles.chip,
+                          dishCategory === c && styles.activeChip,
                         ]}
+                        onPress={() => setDishCategory(c)}
+                        activeOpacity={0.7}
                       >
-                        {c}
-                      </Text>
+                        <Text
+                          style={[
+                            styles.chipText,
+                            dishCategory === c && styles.activeChipText,
+                          ]}
+                        >
+                          {c}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity
+                      style={styles.cancelModalBtn}
+                      onPress={() => setFormModalVisible(false)}
+                    >
+                      <Text style={styles.cancelText}>Cancel</Text>
                     </TouchableOpacity>
-                  ))}
-                </View>
 
-                <View style={styles.modalActions}>
-                  <TouchableOpacity
-                    style={styles.cancelModalBtn}
-                    onPress={() => setFormModalVisible(false)}
-                  >
-                    <Text style={styles.cancelText}>Cancel</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.saveModalBtn}
-                    onPress={handleSaveDish}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.saveText}>Save Dish</Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.saveModalBtn}
+                      onPress={handleSaveDish}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.saveText}>Save Dish</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            </TouchableWithoutFeedback>
+              </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
           </TouchableOpacity>
         </Modal>
       )}
@@ -507,7 +543,6 @@ export default function MenuCrudScreen({ route, navigation }) {
 const makeStyles = (c) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
-
     topBar: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -527,7 +562,6 @@ const makeStyles = (c) =>
       borderColor: c.border,
     },
     roleBadgeText: { color: c.primary, fontSize: 11, fontWeight: '700' },
-
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -544,7 +578,6 @@ const makeStyles = (c) =>
       borderRadius: 8,
     },
     addBtnText: { color: '#FFF', fontWeight: '700', fontSize: 12 },
-
     categoryRow: { paddingHorizontal: 16, alignItems: 'center' },
     categoryChip: {
       backgroundColor: c.chip,
@@ -558,7 +591,6 @@ const makeStyles = (c) =>
     activeCategoryChip: { backgroundColor: c.primary, borderColor: c.primary },
     categoryChipText: { color: c.icon, fontSize: 12, fontWeight: '600' },
     activeCategoryChipText: { color: '#FFF', fontWeight: '700' },
-
     listContainer: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 30 },
     card: {
       backgroundColor: c.card,
@@ -582,7 +614,6 @@ const makeStyles = (c) =>
     statusBadgeText: { fontSize: 10, fontWeight: '700' },
     categoryText: { color: c.muted, fontSize: 12, marginTop: 4 },
     priceText: { color: c.primary, fontSize: 14, fontWeight: '700', marginTop: 4 },
-
     tapIndicator: {
       paddingHorizontal: 10,
       paddingVertical: 6,
@@ -592,7 +623,6 @@ const makeStyles = (c) =>
       borderColor: c.border,
     },
     tapIndicatorText: { color: c.primary, fontSize: 11, fontWeight: '600' },
-
     sheetOptionBtn: {
       paddingVertical: 12,
       paddingHorizontal: 14,
@@ -620,7 +650,6 @@ const makeStyles = (c) =>
       paddingVertical: 10,
       marginTop: 4,
     },
-
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.75)',

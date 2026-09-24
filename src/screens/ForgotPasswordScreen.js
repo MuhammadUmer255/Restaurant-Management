@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { validateEmail, validatePassword, getPasswordErrorMessage } from '../utils/authValidation';
 import Toast from '../components/Toast';
+import PasswordField from '../components/PasswordField';
 import { useTheme } from '../context/ThemeContext';
 
 export default function ForgotPasswordScreen({ navigation }) {
@@ -357,28 +358,26 @@ export default function ForgotPasswordScreen({ navigation }) {
               <Text style={styles.subtitle}>Create a new strong password for your account.</Text>
 
               <Text style={styles.label}>New Password</Text>
-              <TextInput
+              <PasswordField
                 style={[styles.input, passwordError ? styles.inputErrorBorder : null]}
                 value={newPassword}
                 onChangeText={(val) => {
                   setNewPassword(val);
                   setPasswordError('');
                 }}
-                secureTextEntry
                 placeholder="Min 8 chars (e.g. Admin@123)"
                 placeholderTextColor={colors.muted}
               />
               {!!passwordError && <Text style={styles.fieldErrorText}>{passwordError}</Text>}
 
               <Text style={styles.label}>Confirm New Password</Text>
-              <TextInput
+              <PasswordField
                 style={[styles.input, confirmPasswordError ? styles.inputErrorBorder : null]}
                 value={confirmPassword}
                 onChangeText={(val) => {
                   setConfirmPassword(val);
                   setConfirmPasswordError('');
                 }}
-                secureTextEntry
                 placeholder="Re-enter new password"
                 placeholderTextColor={colors.muted}
               />

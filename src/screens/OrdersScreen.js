@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Toast from '../components/Toast';
+import { formatCurrency } from '../utils/currency';
 import { useTheme } from '../context/ThemeContext';
 
 const INITIAL_ORDERS = [
@@ -22,10 +23,10 @@ const INITIAL_ORDERS = [
     time: '12 mins ago',
     status: 'In Kitchen',
     paymentStatus: 'Unpaid',
-    total: '$96.00',
+    total: 9600,
     items: [
-      { qty: 1, name: 'Truffle Wagyu Ribeye', price: 68.00 },
-      { qty: 1, name: 'Yuzu Basil Smash', price: 28.00 },
+      { qty: 1, name: 'Truffle Wagyu Ribeye', price: 6800 },
+      { qty: 1, name: 'Yuzu Basil Smash', price: 2800 },
     ],
   },
   {
@@ -35,9 +36,9 @@ const INITIAL_ORDERS = [
     time: '25 mins ago',
     status: 'Served',
     paymentStatus: 'Unpaid',
-    total: '$39.25',
+    total: 3925,
     items: [
-      { qty: 1, name: 'Hokkaido Scallops Crudo', price: 39.25 },
+      { qty: 1, name: 'Hokkaido Scallops Crudo', price: 3925 },
     ],
   },
   {
@@ -47,9 +48,9 @@ const INITIAL_ORDERS = [
     time: '5 mins ago',
     status: 'Pending',
     paymentStatus: 'Unpaid',
-    total: '$390.00',
+    total: 39000,
     items: [
-      { qty: 1, name: 'Chef Special Platter', price: 390.00 },
+      { qty: 1, name: 'Chef Special Platter', price: 39000 },
     ],
   },
 ];
@@ -106,14 +107,21 @@ export default function OrdersScreen({ navigation }) {
   };
 
   const handleCheckout = (order) => {
-    showToast(`Navigating to checkout for ${order.id}...`, 'success');
+    showToast(`Navigating to checkout for ${order.id}...`, 'info');
     setTimeout(() => {
-      navigation?.navigate('Billing', { orderData: order });
-    }, 400);
+      navigation?.navigate('Billing', {
+        orderData: {
+          id: order.id,
+          table: order.table,
+          customer: order.waiter ? `Served by ${order.waiter}` : 'Walk-in Guest',
+          items: order.items,
+        },
+      });
+    }, 300);
   };
 
   const handleNewOrder = () => {
-    showToast('New order creation workflow opened.', 'info');
+    showToast('Select a table from Tables tab to start new order', 'info');
   };
 
   return (
@@ -124,7 +132,6 @@ export default function OrdersScreen({ navigation }) {
         translucent={false}
       />
 
-      {/* Top Floating Toast */}
       <Toast
         visible={toastConfig.visible}
         message={toastConfig.message}
@@ -178,6 +185,11 @@ export default function OrdersScreen({ navigation }) {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 40, fontStyle: 'italic' }}>
+            No orders found under "{selectedFilter}".
+          </Text>
+        }
         renderItem={({ item }) => (
           <View style={styles.orderCard}>
             {/* Card Header */}
@@ -204,7 +216,7 @@ export default function OrdersScreen({ navigation }) {
                   <Text style={styles.itemQty}>{subItem.qty}x</Text>
                   <Text style={styles.itemName} numberOfLines={1}>{subItem.name}</Text>
                   <Text style={styles.itemPrice}>
-                    ${typeof subItem.price === 'number' ? subItem.price.toFixed(2) : subItem.price}
+                    {formatCurrency(subItem.price)}
                   </Text>
                 </View>
               ))}
@@ -216,7 +228,7 @@ export default function OrdersScreen({ navigation }) {
             <View style={styles.cardFooter}>
               <View>
                 <Text style={styles.totalLabel}>Total Amount</Text>
-                <Text style={styles.totalValue}>{item.total}</Text>
+                <Text style={styles.totalValue}>{formatCurrency(item.total)}</Text>
               </View>
 
               {item.status === 'Served' ? (

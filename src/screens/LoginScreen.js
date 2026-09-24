@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { validateEmail } from '../utils/authValidation';
 import Toast from '../components/Toast';
+import PasswordField from '../components/PasswordField';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
@@ -73,7 +74,10 @@ export default function LoginScreen({ navigation }) {
 
     setTimeout(() => {
       setLoading(false);
-      showToast(`Signed in as ${selectedRole === 'admin' ? 'Admin Manager' : 'Staff / User'}!`, 'success');
+      showToast(
+        `Signed in as ${selectedRole === 'admin' ? 'Admin Manager' : 'Staff / User'}!`,
+        'success'
+      );
 
       // Perform login in AuthContext with chosen role
       login({
@@ -100,13 +104,24 @@ export default function LoginScreen({ navigation }) {
         onDismiss={hideToast}
       />
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Brand Header Badge Section */}
           <View style={styles.headerContainer}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.title}>Welcome Back!</Text>
+            <View style={styles.logoBadge}>
+              <Ionicons
+                name="restaurant-outline"
+                size={36}
+                color={colors.primary}
+              />
             </View>
+            <Text style={styles.title}>Welcome Back!</Text>
             <Text style={styles.subtitle}>
               {selectedRole === 'admin'
                 ? 'Sign in as Admin Manager for full access, CRUD & management.'
@@ -169,37 +184,64 @@ export default function LoginScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
+          {/* Form Card */}
           <View style={styles.card}>
             <Text style={styles.label}>
-              {selectedRole === 'admin' ? 'Admin Email Address' : 'User / Staff Email'}
+              {selectedRole === 'admin'
+                ? 'Admin Email Address'
+                : 'User / Staff Email'}
             </Text>
-            <TextInput
-              style={[styles.input, emailError ? styles.inputErrorBorder : null]}
-              value={email}
-              onChangeText={(val) => {
-                setEmail(val);
-                setEmailError('');
-              }}
-              placeholder={selectedRole === 'admin' ? 'admin@gourmet.com' : 'user@gourmet.com'}
-              placeholderTextColor={colors.muted}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            {!!emailError && <Text style={styles.fieldErrorText}>{emailError}</Text>}
+            
+            {/* Vector Icon Integrated Email Input */}
+            <View
+              style={[
+                styles.inputWrapper,
+                emailError ? styles.inputErrorBorder : null,
+              ]}
+            >
+              <Ionicons
+                name="mail-outline"
+                size={18}
+                color={colors.icon}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={(val) => {
+                  setEmail(val);
+                  setEmailError('');
+                }}
+                placeholder={
+                  selectedRole === 'admin'
+                    ? 'admin@gourmet.com'
+                    : 'user@gourmet.com'
+                }
+                placeholderTextColor={colors.muted}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+            {!!emailError && (
+              <Text style={styles.fieldErrorText}>{emailError}</Text>
+            )}
 
             <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={[styles.input, passwordError ? styles.inputErrorBorder : null]}
+            <PasswordField
+              style={[
+                passwordError ? styles.inputErrorBorder : null,
+              ]}
               value={password}
               onChangeText={(val) => {
                 setPassword(val);
                 setPasswordError('');
               }}
-              secureTextEntry
               placeholder="Enter your password"
               placeholderTextColor={colors.muted}
             />
-            {!!passwordError && <Text style={styles.fieldErrorText}>{passwordError}</Text>}
+            {!!passwordError && (
+              <Text style={styles.fieldErrorText}>{passwordError}</Text>
+            )}
 
             <TouchableOpacity
               style={styles.forgotBtn}
@@ -219,21 +261,29 @@ export default function LoginScreen({ navigation }) {
               ) : (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={styles.btnText}>
-                    {selectedRole === 'admin' ? 'Login as Admin' : 'Login as User'}
+                    {selectedRole === 'admin'
+                      ? 'Login as Admin'
+                      : 'Login as User'}
                   </Text>
-                  <Ionicons name="arrow-forward-outline" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                  <Ionicons
+                    name="arrow-forward-outline"
+                    size={16}
+                    color="#FFFFFF"
+                    style={{ marginLeft: 6 }}
+                  />
                 </View>
               )}
             </TouchableOpacity>
 
             <View style={styles.registerContainer}>
               <Text style={styles.registerSubText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('RegisterScreen')}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('RegisterScreen')}
+              >
                 <Text style={styles.registerText}>Register Now</Text>
               </TouchableOpacity>
             </View>
           </View>
-
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -245,9 +295,25 @@ const makeStyles = (c) =>
     container: { flex: 1, backgroundColor: c.bg },
     scrollContent: { padding: 20, flexGrow: 1, justifyContent: 'center' },
 
-    headerContainer: { marginBottom: 20 },
-    title: { color: c.text, fontSize: 28, fontWeight: '800', marginBottom: 6 },
-    subtitle: { color: c.icon, fontSize: 13, lineHeight: 19 },
+    headerContainer: { alignItems: 'center', marginBottom: 20 },
+    logoBadge: {
+      width: 72,
+      height: 72,
+      borderRadius: 18,
+      backgroundColor: c.card,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: c.border,
+      marginBottom: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    title: { color: c.text, fontSize: 28, fontWeight: '800', marginBottom: 6, textAlign: 'center' },
+    subtitle: { color: c.icon, fontSize: 13, lineHeight: 19, textAlign: 'center' },
 
     roleToggleContainer: {
       flexDirection: 'row',
@@ -289,15 +355,24 @@ const makeStyles = (c) =>
     },
 
     label: { color: c.icon, fontSize: 12, marginBottom: 6, fontWeight: '600', marginTop: 10 },
-    input: {
+    inputWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
       backgroundColor: c.bg,
-      color: c.text,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
       borderRadius: 10,
       borderWidth: 1,
       borderColor: c.border,
+      paddingHorizontal: 12,
+      height: 48,
+    },
+    inputIcon: {
+      marginRight: 8,
+    },
+    input: {
+      flex: 1,
+      color: c.text,
       fontSize: 14,
+      height: '100%',
     },
     inputErrorBorder: { borderColor: c.danger },
     fieldErrorText: { color: c.danger, fontSize: 12, marginTop: 5, fontWeight: '500' },
