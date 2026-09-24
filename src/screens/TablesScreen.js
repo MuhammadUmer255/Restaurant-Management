@@ -164,15 +164,15 @@ export default function TablesScreen() {
 
           ? {
 
-              ...t,
+            ...t,
 
-              status: 'Reserved',
+            status: 'Reserved',
 
-              customer: guestName,
+            customer: guestName,
 
-              time: bookingTime,
+            time: bookingTime,
 
-            }
+          }
 
           : t
 
