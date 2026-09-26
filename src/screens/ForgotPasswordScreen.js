@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { supabase } from '../config/supabase';
 import {
   StyleSheet,
   Text,

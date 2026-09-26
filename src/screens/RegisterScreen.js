@@ -18,6 +18,8 @@ import Toast from '../components/Toast';
 import PasswordField from '../components/PasswordField';
 import { useTheme } from '../context/ThemeContext';
 
+const API_URL = 'http://10.0.2.2:8000';
+
 export default function RegisterScreen({ navigation }) {
   const { isDark, colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -56,7 +58,7 @@ export default function RegisterScreen({ navigation }) {
     setToastConfig((prev) => ({ ...prev, visible: false }));
   };
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     let isValid = true;
     setFullNameError('');
     setRestaurantNameError('');
@@ -98,19 +100,56 @@ export default function RegisterScreen({ navigation }) {
 
     setLoading(true);
 
-    setTimeout(() => {
-      setLoading(false);
-      const successMsg =
+try {
+  const response = await fetch(`${API_URL}/api/v1/auth/register`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      full_name:
         selectedRole === 'admin'
-          ? 'Restaurant Admin account registered successfully!'
-          : `Staff account (${staffRole}) registered successfully!`;
+          ? restaurantName.trim()
+          : fullName.trim(),
+      restaurant_name:
+        selectedRole === 'admin'
+          ? restaurantName.trim()
+          : null,
+      email: email.trim(),
+      role: selectedRole,
+      designation:
+        selectedRole === 'user'
+          ? staffRole
+          : 'Restaurant Admin',
+      password,
+      confirm_password: confirmPassword,
+    }),
+  });
 
-      showToast(successMsg, 'success');
+  const data = await response.json();
 
-      setTimeout(() => {
-        navigation.navigate('LoginScreen');
-      }, 1500);
-    }, 1000);
+  if (data.message === 'Registration successful!') {
+    showToast(
+      selectedRole === 'admin'
+        ? 'Restaurant Admin account registered successfully!'
+        : `Staff account (${staffRole}) registered successfully!`,
+      'success'
+    );
+
+    setTimeout(() => {
+      navigation.navigate('LoginScreen');
+    }, 1500);
+  } else {
+    showToast(data.error || data.message || 'Registration failed!', 'error');
+  }
+} catch (error) {
+  showToast(
+    'Backend se connection nahi ho saka. Make sure server is running.',
+    'error'
+  );
+} finally {
+  setLoading(false);
+}
   };
 
   return (
