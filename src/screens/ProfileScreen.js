@@ -14,23 +14,20 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext'; // NEW
+import { useTheme } from '../context/ThemeContext';
 import Toast from '../components/Toast';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
-  const { isDark, colors, toggleTheme } = useTheme(); // NEW
-  const styles = useMemo(() => makeStyles(colors), [colors]); // NEW
+  const { isDark, colors, toggleTheme } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  // Role detection (Admin vs User)
   const userRole = user?.role || 'user';
-  const isAdmin = userRole === 'admin';
+  const isAdmin = String(userRole).toLowerCase() === 'admin';
 
-  // Toggle states
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [logoutVisible, setLogoutVisible] = useState(false);
 
-  // Toast State
   const [toastConfig, setToastConfig] = useState({
     visible: false,
     message: '',
@@ -45,19 +42,17 @@ export default function ProfileScreen({ navigation }) {
     setToastConfig((prev) => ({ ...prev, visible: false }));
   };
 
-  // Logout button dabane par pehle confirmation dialog khulega
   const handleLogout = () => {
     setLogoutVisible(true);
   };
 
-  // "Yes, Logout" dabane par toast dikhao, phir logout karo
-  const confirmLogout = () => {
+  const confirmLogout = async () => {
     setLogoutVisible(false);
-    showToast('Logged out successfully', 'success');
-    setTimeout(() => {
-      logout();
-    }, 1500);
+    await logout(); // Async Storage Clear & Context Reset
   };
+
+  // User Display Name Logic
+  const displayName = user?.full_name || user?.name || user?.email?.split('@')[0] || 'User';
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -67,7 +62,6 @@ export default function ProfileScreen({ navigation }) {
         translucent={false}
       />
 
-      {/* Top Floating Toast */}
       <Toast
         visible={toastConfig.visible}
         message={toastConfig.message}
@@ -75,12 +69,12 @@ export default function ProfileScreen({ navigation }) {
         onDismiss={hideToast}
       />
 
-      {/* Header Bar */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation?.goBack()}
           style={styles.backBtn}
           activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="chevron-back-outline" size={18} color={colors.primary} />
@@ -98,7 +92,6 @@ export default function ProfileScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Profile Avatar Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatarLarge}>
             <Ionicons
@@ -107,7 +100,7 @@ export default function ProfileScreen({ navigation }) {
               color={colors.primary}
             />
           </View>
-          <Text style={styles.userName}>{user?.name || (isAdmin ? 'Admin Manager' : 'Staff User')}</Text>
+          <Text style={styles.userName}>{displayName}</Text>
           <Text style={styles.userEmail}>{user?.email || 'user@gourmetos.com'}</Text>
 
           <View style={styles.badgeRow}>
@@ -119,9 +112,7 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Dynamic Detail Cards: ADMIN vs USER */}
         {isAdmin ? (
-          /* ADMIN DETAILS SECTION */
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Restaurant & System Overview</Text>
             <View style={styles.divider} />
@@ -130,7 +121,7 @@ export default function ProfileScreen({ navigation }) {
               <Ionicons name="restaurant-outline" size={18} color={colors.icon} style={styles.infoIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.infoLabel}>Restaurant Name</Text>
-                <Text style={styles.infoValue}>GourmetOS Main Branch</Text>
+                <Text style={styles.infoValue}>{user?.restaurant_name || 'GourmetOS Main Branch'}</Text>
               </View>
             </View>
 
@@ -151,7 +142,6 @@ export default function ProfileScreen({ navigation }) {
             </View>
           </View>
         ) : (
-          /* USER DETAILS SECTION */
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>Staff Work Info</Text>
             <View style={styles.divider} />
@@ -182,12 +172,10 @@ export default function ProfileScreen({ navigation }) {
           </View>
         )}
 
-        {/* Preferences Section */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>App Settings</Text>
           <View style={styles.divider} />
 
-          {/* NEW: Dark / Light Mode Toggle */}
           <View style={styles.settingRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons
@@ -232,7 +220,6 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Logout Button */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="log-out-outline" size={18} color={colors.danger} style={{ marginRight: 8 }} />
@@ -241,7 +228,6 @@ export default function ProfileScreen({ navigation }) {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Logout Confirmation Dialog */}
       <Modal
         visible={logoutVisible}
         animationType="fade"
@@ -287,11 +273,9 @@ export default function ProfileScreen({ navigation }) {
   );
 }
 
-// Styles ab function hain taake colors theme ke hisaab se badlein
 const makeStyles = (c) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
-
     header: {
       paddingHorizontal: 16,
       paddingTop: Platform.OS === 'android' ? 8 : 12,
@@ -314,9 +298,7 @@ const makeStyles = (c) =>
       borderColor: c.border,
     },
     roleBadgeHeaderText: { color: c.primary, fontSize: 10, fontWeight: '800' },
-
     content: { padding: 16, paddingBottom: 40 },
-
     profileCard: {
       backgroundColor: c.card,
       borderRadius: 16,
@@ -345,7 +327,6 @@ const makeStyles = (c) =>
     adminBadgeText: { color: c.primary, fontWeight: '700', fontSize: 11 },
     userBadgeBg: { backgroundColor: 'rgba(53, 212, 155, 0.15)', borderColor: 'rgba(53, 212, 155, 0.3)' },
     userBadgeText: { color: c.success, fontWeight: '700', fontSize: 11 },
-
     sectionCard: {
       backgroundColor: c.card,
       borderRadius: 14,
@@ -356,16 +337,13 @@ const makeStyles = (c) =>
     },
     sectionTitle: { color: c.text, fontSize: 14, fontWeight: '700' },
     divider: { height: 1, backgroundColor: c.border, marginVertical: 12 },
-
     infoRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 8 },
     infoIcon: { marginRight: 12 },
     infoLabel: { color: c.muted, fontSize: 11, fontWeight: '500' },
     infoValue: { color: c.text, fontSize: 13, fontWeight: '600', marginTop: 1 },
-
     settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 4 },
     settingClickRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, marginTop: 4 },
     settingLabel: { color: c.label, fontSize: 13, fontWeight: '600' },
-
     logoutBtn: {
       backgroundColor: 'rgba(255, 82, 106, 0.12)',
       paddingVertical: 14,
@@ -376,8 +354,6 @@ const makeStyles = (c) =>
       marginTop: 6,
     },
     logoutText: { color: c.danger, fontSize: 14, fontWeight: '700' },
-
-    // Logout dialog
     dialogOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.65)',

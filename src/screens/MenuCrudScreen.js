@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -12,6 +12,8 @@ import {
   StatusBar,
   Platform,
   KeyboardAvoidingView,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -19,13 +21,13 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import Toast from '../components/Toast';
 import { formatCurrency } from '../utils/currency';
-
-const INITIAL_MENU = [
-  { id: '1', name: 'Zinger Burger', price: '550', category: 'Fast Food', available: true },
-  { id: '2', name: 'Chicken Karahi', price: '1200', category: 'Main Course', available: true },
-  { id: '3', name: 'Club Sandwich', price: '400', category: 'Fast Food', available: false },
-  { id: '4', name: 'Mint Margarita', price: '250', category: 'Drinks', available: true },
-];
+import {
+  getMenuItems,
+  createMenuItem,
+  updateMenuItem,
+  toggleMenuAvailability,
+  deleteMenuItem,
+} from '../services/menuService';
 
 const CATEGORIES = ['All', 'Fast Food', 'Main Course', 'Drinks', 'Dessert'];
 
@@ -38,8 +40,11 @@ export default function MenuCrudScreen({ route, navigation }) {
   const rawRole = route?.params?.role || authContext?.userRole || authContext?.user?.role || 'admin';
   const isAdmin = String(rawRole).trim().toLowerCase() === 'admin';
 
-  const [menuItems, setMenuItems] = useState(INITIAL_MENU);
+  const [menuItems, setMenuItems] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Active Selected Item State
   const [selectedDish, setSelectedDish] = useState(null);
@@ -62,27 +67,49 @@ export default function MenuCrudScreen({ route, navigation }) {
     type: 'success',
   });
 
-  const showToast = (message, type = 'success') => {
+  const showToast = useCallback((message, type = 'success') => {
     setToastConfig({ visible: true, message, type });
+  }, []);
+
+  const hideToast = useCallback(() => {
+    setToastConfig((prev) => ({ ...prev, visible: false }));
+  }, []);
+
+  // 📥 1. FETCH MENU FROM BACKEND
+  const fetchMenu = async () => {
+    try {
+      const data = await getMenuItems();
+      setMenuItems(data);
+    } catch (error) {
+      showToast(error?.message || 'Could not load menu from server.', 'error');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
-  const hideToast = () => {
-    setToastConfig((prev) => ({ ...prev, visible: false }));
+  useEffect(() => {
+    fetchMenu();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchMenu();
   };
 
   // Filter Menu
-  const filteredMenu = menuItems.filter(
-    (item) => selectedCategory === 'All' || item.category === selectedCategory
-  );
+  const filteredMenu = useMemo(() => {
+    return menuItems.filter(
+      (item) => selectedCategory === 'All' || item.category === selectedCategory
+    );
+  }, [menuItems, selectedCategory]);
 
-  // 1. User taps a Dish Card or Manage Button
-  const handleDishPress = (dish) => {
+  const handleDishPress = useCallback((dish) => {
     if (!isAdmin) return;
     setSelectedDish(dish);
     setActionMenuVisible(true);
-  };
+  }, [isAdmin]);
 
-  // 2. Open Add Dish Modal
   const openAddModal = () => {
     setSelectedDish(null);
     setCurrentAction('ADD');
@@ -92,7 +119,23 @@ export default function MenuCrudScreen({ route, navigation }) {
     setFormModalVisible(true);
   };
 
-  // 3. Action Sheet Choice
+  // 🔄 2. TOGGLE AVAILABILITY VIA BACKEND
+  const toggleAvailability = useCallback(async (dish) => {
+    try {
+      const updatedStatus = !dish.available;
+      await toggleMenuAvailability(dish.id, updatedStatus);
+      setMenuItems((prev) =>
+        prev.map((item) => (item.id === dish.id ? { ...item, available: updatedStatus } : item))
+      );
+      showToast(
+        `${dish.name} is now ${updatedStatus ? 'In Stock' : 'Out of Stock'}`,
+        'success'
+      );
+    } catch (error) {
+      showToast(error?.message || 'Failed to update availability.', 'error');
+    }
+  }, [showToast]);
+
   const handleSelectAction = (action) => {
     setActionMenuVisible(false);
 
@@ -103,7 +146,7 @@ export default function MenuCrudScreen({ route, navigation }) {
 
     if (action === 'TOGGLE_AVAILABILITY') {
       if (selectedDish) {
-        toggleAvailability(selectedDish.id);
+        toggleAvailability(selectedDish);
       }
       return;
     }
@@ -123,71 +166,116 @@ export default function MenuCrudScreen({ route, navigation }) {
     setFormModalVisible(true);
   };
 
-  // Toggle Stock Availability
-  const toggleAvailability = (id) => {
-    setMenuItems((prev) =>
-      prev.map((dish) => {
-        if (dish.id === id) {
-          const nextStatus = !dish.available;
-          showToast(
-            `${dish.name} is now ${nextStatus ? 'In Stock' : 'Out of Stock'}`,
-            'success'
-          );
-          return { ...dish, available: nextStatus };
-        }
-        return dish;
-      })
-    );
-  };
+  // 🗑️ 3. DELETE DISH VIA BACKEND
+  const confirmDeleteDish = async () => {
+    if (!selectedDish) return;
+    const dishId = selectedDish.id;
+    const name = selectedDish.name;
 
-  // Confirm Delete Handler
-  const confirmDeleteDish = () => {
-    if (selectedDish) {
-      const name = selectedDish.name;
-      setMenuItems((prev) => prev.filter((d) => d.id !== selectedDish.id));
+    try {
+      setSaving(true);
+      await deleteMenuItem(dishId);
+      setMenuItems((prev) => prev.filter((d) => d.id !== dishId));
+      showToast(`${name} removed from menu!`, 'success');
+    } catch (error) {
+      showToast(error?.message || 'Failed to delete dish.', 'error');
+    } finally {
+      setSaving(false);
       setDeleteConfirmVisible(false);
       setSelectedDish(null);
-      showToast(`${name} removed from menu!`, 'error');
     }
   };
 
-  // 4. Save Details in Form Modal
-  const handleSaveDish = () => {
+  // 💾 4. ADD / EDIT DISH VIA BACKEND
+  const handleSaveDish = async () => {
     if (!dishName.trim() || !dishPrice.trim()) {
       showToast('Please enter both dish name and price.', 'error');
       return;
     }
 
-    const cleanPrice = dishPrice.replace(/[^0-9.]/g, '');
-    if (!cleanPrice || parseFloat(cleanPrice) <= 0) {
+    const cleanPrice = parseFloat(dishPrice);
+    if (isNaN(cleanPrice) || cleanPrice <= 0) {
       showToast('Please enter a valid positive price.', 'error');
       return;
     }
 
-    if (currentAction === 'EDIT' && selectedDish) {
-      setMenuItems((prev) =>
-        prev.map((d) =>
-          d.id === selectedDish.id
-            ? { ...d, name: dishName.trim(), price: cleanPrice, category: dishCategory }
-            : d
-        )
-      );
-      showToast(`${dishName.trim()} updated successfully!`, 'success');
-    } else {
-      const newDish = {
-        id: Date.now().toString(),
-        name: dishName.trim(),
-        price: cleanPrice,
-        category: dishCategory,
-        available: true,
-      };
-      setMenuItems((prev) => [newDish, ...prev]);
-      showToast(`${dishName.trim()} added to menu!`, 'success');
-    }
+    setSaving(true);
+    const trimmedName = dishName.trim();
+    const payload = {
+      name: trimmedName,
+      price: cleanPrice,
+      category: dishCategory,
+      available: true,
+    };
 
-    setFormModalVisible(false);
-    setSelectedDish(null);
+    try {
+      if (currentAction === 'EDIT' && selectedDish) {
+        const updated = await updateMenuItem(selectedDish.id, payload);
+        setMenuItems((prev) =>
+          prev.map((d) => (d.id === selectedDish.id ? { ...d, ...updated } : d))
+        );
+        showToast(`${trimmedName} updated successfully!`, 'success');
+      } else {
+        const created = await createMenuItem(payload);
+        setMenuItems((prev) => [created, ...prev]);
+        showToast(`${trimmedName} added to menu!`, 'success');
+      }
+      setFormModalVisible(false);
+      setSelectedDish(null);
+    } catch (err) {
+      // Modal khula rehta hai agar save fail ho, taake user dobara try kar sake
+      showToast(err?.message || 'Failed to save dish.', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const renderMenuItem = useCallback(({ item }) => (
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={isAdmin ? 0.7 : 1}
+      onPress={() => handleDishPress(item)}
+    >
+      <View style={{ flex: 1, paddingRight: 10 }}>
+        <View style={styles.nameRow}>
+          <Text style={styles.dishName}>{item.name}</Text>
+          <View
+            style={[
+              styles.statusBadge,
+              {
+                backgroundColor: item.available
+                  ? 'rgba(53, 212, 155, 0.15)'
+                  : 'rgba(255, 82, 106, 0.15)',
+                borderColor: item.available
+                  ? 'rgba(53, 212, 155, 0.3)'
+                  : 'rgba(255, 82, 106, 0.3)',
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusBadgeText,
+                { color: item.available ? colors.success : colors.danger },
+              ]}
+            >
+              {item.available ? '● In Stock' : '● Out of Stock'}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.categoryText}>Category: {item.category}</Text>
+        <Text style={styles.priceText}>{formatCurrency(item.price)}</Text>
+      </View>
+
+      {isAdmin && (
+        <View style={styles.tapIndicator}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={styles.tapIndicatorText}>Manage</Text>
+            <Ionicons name="chevron-forward-outline" size={12} color={colors.primary} style={{ marginLeft: 2 }} />
+          </View>
+        </View>
+      )}
+    </TouchableOpacity>
+  ), [isAdmin, handleDishPress, styles, colors]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -204,12 +292,12 @@ export default function MenuCrudScreen({ route, navigation }) {
         onDismiss={hideToast}
       />
 
-      {/* Top Navigation Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
           onPress={() => navigation?.goBack()}
           style={styles.backBtn}
           activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="chevron-back-outline" size={16} color={colors.primary} />
@@ -219,12 +307,11 @@ export default function MenuCrudScreen({ route, navigation }) {
 
         <View style={styles.roleBadgeContainer}>
           <Text style={styles.roleBadgeText}>
-            {isAdmin ? '⚡ Admin Mode' : 'Customer View'}
+            {isAdmin ? '⚡ Admin Mode' : ''}
           </Text>
         </View>
       </View>
 
-      {/* Header */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.title} numberOfLines={1}>
@@ -249,7 +336,6 @@ export default function MenuCrudScreen({ route, navigation }) {
         )}
       </View>
 
-      {/* Horizontal Filter Chips */}
       <View style={{ height: 42, marginBottom: 8 }}>
         <ScrollView
           horizontal
@@ -279,66 +365,33 @@ export default function MenuCrudScreen({ route, navigation }) {
         </ScrollView>
       </View>
 
-      {/* Menu List */}
-      <FlatList
-        data={filteredMenu}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 40, fontStyle: 'italic' }}>
-            No dishes found in "{selectedCategory}".
-          </Text>
-        }
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            activeOpacity={isAdmin ? 0.7 : 1}
-            onPress={() => handleDishPress(item)}
-          >
-            <View style={{ flex: 1, paddingRight: 10 }}>
-              <View style={styles.nameRow}>
-                <Text style={styles.dishName}>{item.name}</Text>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    {
-                      backgroundColor: item.available
-                        ? 'rgba(53, 212, 155, 0.15)'
-                        : 'rgba(255, 82, 106, 0.15)',
-                      borderColor: item.available
-                        ? 'rgba(53, 212, 155, 0.3)'
-                        : 'rgba(255, 82, 106, 0.3)',
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.statusBadgeText,
-                      { color: item.available ? colors.success : colors.danger },
-                    ]}
-                  >
-                    {item.available ? '● In Stock' : '● Out of Stock'}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.categoryText}>Category: {item.category}</Text>
-              <Text style={styles.priceText}>{formatCurrency(item.price)}</Text>
-            </View>
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={filteredMenu}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+            />
+          }
+          ListEmptyComponent={
+            <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 40, fontStyle: 'italic' }}>
+              No dishes found in "{selectedCategory}".
+            </Text>
+          }
+          renderItem={renderMenuItem}
+        />
+      )}
 
-            {isAdmin && (
-              <View style={styles.tapIndicator}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={styles.tapIndicatorText}>Manage</Text>
-                  <Ionicons name="chevron-forward-outline" size={12} color={colors.primary} style={{ marginLeft: 2 }} />
-                </View>
-              </View>
-            )}
-          </TouchableOpacity>
-        )}
-      />
-
-      {/* STEP 1: Action Context Sheet Modal */}
+      {/* Action Context Sheet Modal */}
       {isAdmin && (
         <Modal
           visible={actionMenuVisible}
@@ -406,7 +459,7 @@ export default function MenuCrudScreen({ route, navigation }) {
         </Modal>
       )}
 
-      {/* STEP 2: Custom Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal */}
       {isAdmin && (
         <Modal
           visible={deleteConfirmVisible}
@@ -438,8 +491,13 @@ export default function MenuCrudScreen({ route, navigation }) {
                     style={[styles.saveModalBtn, { backgroundColor: colors.danger }]}
                     onPress={confirmDeleteDish}
                     activeOpacity={0.8}
+                    disabled={saving}
                   >
-                    <Text style={styles.saveText}>Delete</Text>
+                    {saving ? (
+                      <ActivityIndicator color="#FFF" size="small" />
+                    ) : (
+                      <Text style={styles.saveText}>Delete</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               </View>
@@ -448,7 +506,7 @@ export default function MenuCrudScreen({ route, navigation }) {
         </Modal>
       )}
 
-      {/* STEP 3: Detail Input Modal */}
+      {/* Form Modal */}
       {isAdmin && (
         <Modal
           visible={formModalVisible}
@@ -526,8 +584,13 @@ export default function MenuCrudScreen({ route, navigation }) {
                       style={styles.saveModalBtn}
                       onPress={handleSaveDish}
                       activeOpacity={0.8}
+                      disabled={saving}
                     >
-                      <Text style={styles.saveText}>Save Dish</Text>
+                      {saving ? (
+                        <ActivityIndicator color="#FFF" size="small" />
+                      ) : (
+                        <Text style={styles.saveText}>Save Dish</Text>
+                      )}
                     </TouchableOpacity>
                   </View>
                 </View>

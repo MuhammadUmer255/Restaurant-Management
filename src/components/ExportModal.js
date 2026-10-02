@@ -1,24 +1,44 @@
 import React, { useState, useMemo } from 'react';
-import { StyleSheet, Text, View, Modal, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, Text, View, Modal, TouchableOpacity } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
+import Toast from './Toast';
 
-const ExportModal = ({ visible, onClose, timeFilter = 'Day' }) => {
+const ExportModal = ({ visible, onClose, timeFilter = 'Day', onExportSuccess }) => {
   const [downloading, setDownloading] = useState(false);
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const [toastConfig, setToastConfig] = useState({
+    visible: false,
+    message: '',
+    type: 'success',
+  });
 
   const handleDownload = (format) => {
     setDownloading(true);
     setTimeout(() => {
       setDownloading(false);
-      onClose();
-      Alert.alert('Report Exported', `${timeFilter}-wise sales report downloaded as ${format}!`);
-    }, 1200);
+      const msg = `${timeFilter}-wise sales report downloaded as ${format}!`;
+      if (onExportSuccess) {
+        onExportSuccess(msg);
+      } else {
+        setToastConfig({ visible: true, message: msg, type: 'success' });
+      }
+      setTimeout(() => {
+        onClose();
+      }, 1000);
+    }, 1000);
   };
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+      <Toast
+        visible={toastConfig.visible}
+        message={toastConfig.message}
+        type={toastConfig.type}
+        onDismiss={() => setToastConfig((prev) => ({ ...prev, visible: false }))}
+      />
       <View style={styles.overlay}>
         <View style={styles.modalContent}>
           <Text style={styles.title}>Export Sales Report</Text>

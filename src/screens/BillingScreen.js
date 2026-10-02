@@ -16,6 +16,7 @@ import Toast from '../components/Toast';
 import { formatCurrency } from '../utils/currency';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
+import { checkoutOrder } from '../services/orderService';
 
 const PAYMENT_METHODS = ['Cash', 'Credit Card', 'QR / Wallet'];
 
@@ -83,7 +84,7 @@ export default function BillingScreen({ route, navigation }) {
     showToast('Receipt sent to printer!', 'success');
   };
 
-  const handleSettlePayment = () => {
+  const handleSettlePayment = async () => {
     if (isProcessing) return;
 
     if (selectedMethod === 'Cash' && cashGiven < grandTotal && subtotal > 0) {
@@ -92,16 +93,31 @@ export default function BillingScreen({ route, navigation }) {
     }
 
     setIsProcessing(true);
-    showToast(`Payment of ${formatCurrency(grandTotal)} completed for Table ${orderData.table}!`, 'success');
 
-    // Context synchronization (if available)
-    if (dataContext?.checkoutOrder) {
-      dataContext.checkoutOrder(orderData.id, orderData.table);
+    try {
+      await checkoutOrder(orderData.id, {
+        paymentMethod: selectedMethod,
+        discountPercent: parseFloat(discountPercent) || 0,
+        subtotal,
+        taxAmount,
+        grandTotal,
+        cashTendered: cashGiven,
+        changeDue,
+      });
+
+      showToast(`Payment of ${formatCurrency(grandTotal)} completed for Table ${orderData.table}!`, 'success');
+
+      if (dataContext?.checkoutOrder) {
+        dataContext.checkoutOrder(orderData.id, orderData.table);
+      }
+
+      setTimeout(() => {
+        navigation?.goBack();
+      }, 1500);
+    } catch (err) {
+      showToast('Payment processing failed. Please try again.', 'error');
+      setIsProcessing(false);
     }
-
-    setTimeout(() => {
-      navigation?.goBack();
-    }, 1600);
   };
 
   return (
@@ -129,6 +145,7 @@ export default function BillingScreen({ route, navigation }) {
             onPress={() => navigation?.goBack()}
             style={styles.backBtn}
             activeOpacity={0.7}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons name="chevron-back-outline" size={16} color={colors.primary} />

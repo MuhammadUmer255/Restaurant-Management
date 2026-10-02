@@ -14,7 +14,7 @@ import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
-export default function SplashScreen({ navigation }) {
+export default function SplashScreen({ navigation, onFinish }) {
   const { isDark, colors = {} } = useTheme();
 
   // Safe color fallbacks for theme consistency
@@ -59,13 +59,17 @@ export default function SplashScreen({ navigation }) {
       }),
     ]).start();
 
-    // Auto navigate to LoginScreen after 2.5 seconds
+    // Auto navigate after 2.2 seconds
     const timer = setTimeout(() => {
-      navigation.replace('LoginScreen');
-    }, 2500);
+      if (onFinish) {
+        onFinish();
+      } else if (navigation?.replace) {
+        navigation.replace('LoginScreen');
+      }
+    }, 2200);
 
     return () => clearTimeout(timer);
-  }, [fadeAnim, scaleAnim, slideAnim, navigation]);
+  }, [fadeAnim, scaleAnim, slideAnim, navigation, onFinish]);
 
   return (
     <SafeAreaView style={styles.container}>

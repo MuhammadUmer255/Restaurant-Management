@@ -27,27 +27,35 @@ const MainTabNavigator = ({ route }) => {
       initialRouteName="Dashboard"
       screenOptions={{
         headerShown: false,
+        tabBarShowLabel: true,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.icon,
         tabBarStyle: {
-          backgroundColor: colors.bg,
-          borderTopColor: colors.headerBorder,
-          height: Platform.OS === 'ios' ? 80 : 68,
-          paddingTop: 6,
-          paddingBottom: Platform.OS === 'ios' ? 20 : 8,
+          backgroundColor: colors.card,
+          borderTopColor: colors.border,
+          borderTopWidth: 1,
+          height: Platform.OS === 'ios' ? 76 : 74,
+          paddingTop: 4,
+          paddingBottom: Platform.OS === 'ios' ? 16 : 8,
+          elevation: 9,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.1,
+          shadowRadius: 6,
         },
         tabBarItemStyle: {
           justifyContent: 'center',
           alignItems: 'center',
+          paddingVertical: 4,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
+          fontSize: 10,
+          fontWeight: '700',
           marginTop: 2,
-          paddingBottom: 2,
+          marginBottom: 2,
         },
         tabBarIconStyle: {
-          marginBottom: 0,
+          marginTop: 1,
         },
       }}
     >

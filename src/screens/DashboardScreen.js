@@ -13,23 +13,21 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext'; // NEW
+import { useTheme } from '../context/ThemeContext';
 
 const DashboardScreen = ({ route, navigation }) => {
   const { width } = useWindowDimensions();
   const { user: authUser } = useAuth();
   const user = authUser || {};
-  const { isDark, colors } = useTheme(); // NEW
-  const styles = useMemo(() => makeStyles(colors), [colors]); // NEW
+  const { isDark, colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  // Case-Insensitive Role Resolution
   const rawRole = route?.params?.role || user?.role || 'admin';
   const currentRole = String(rawRole).trim().toUpperCase();
   const isAdmin = currentRole === 'ADMIN';
 
   const [refreshing, setRefreshing] = useState(false);
 
-  // Responsive Grid Logic
   const isTablet = width > 600;
   const statCardWidth = isTablet ? '23%' : '48%';
 
@@ -44,6 +42,9 @@ const DashboardScreen = ({ route, navigation }) => {
     }
   };
 
+  // Safe Display Name Resolution from Auth context
+  const displayName = user?.full_name || user?.name || user?.email?.split('@')[0] || 'User';
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar
@@ -52,11 +53,11 @@ const DashboardScreen = ({ route, navigation }) => {
         translucent={false}
       />
 
-      {/* Header with Working Profile Button */}
+      {/* Header with Dynamic User Name */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greetingText}>Welcome Back </Text>
-          <Text style={styles.userName}>{user?.name || user?.username || 'u7121200'}</Text>
+          <Text style={styles.greetingText}>Welcome Back</Text>
+          <Text style={styles.userName}>{displayName}</Text>
         </View>
 
         <View style={styles.headerRight}>
@@ -172,7 +173,7 @@ const DashboardScreen = ({ route, navigation }) => {
             <Text style={styles.actionSub}>Update dishes, pricing & availability</Text>
           </TouchableOpacity>
 
-          {/* Manage Staff (Always Visible for Admin Role) */}
+          {/* Manage Staff */}
           {isAdmin && (
             <TouchableOpacity
               style={[styles.actionCard, styles.adminHighlightCard]}
@@ -237,10 +238,7 @@ const DashboardScreen = ({ route, navigation }) => {
 
 const makeStyles = (c) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: c.bg,
-    },
+    container: { flex: 1, backgroundColor: c.bg },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -251,22 +249,9 @@ const makeStyles = (c) =>
       borderBottomWidth: 1,
       borderBottomColor: c.headerBorder,
     },
-    headerRight: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    greetingText: {
-      color: c.icon,
-      fontSize: 12,
-      fontWeight: '500',
-    },
-    userName: {
-      color: c.text,
-      fontSize: 18,
-      fontWeight: '700',
-      marginTop: 2,
-    },
+    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    greetingText: { color: c.icon, fontSize: 12, fontWeight: '500' },
+    userName: { color: c.text, fontSize: 18, fontWeight: '700', marginTop: 2 },
     profileBadge: {
       backgroundColor: 'rgba(255, 118, 34, 0.15)',
       paddingHorizontal: 12,
@@ -275,121 +260,26 @@ const makeStyles = (c) =>
       borderWidth: 1,
       borderColor: 'rgba(255, 118, 34, 0.3)',
     },
-    roleBadgeText: {
-      color: c.primary,
-      fontSize: 11,
-      fontWeight: '700',
-    },
-    profileIconBtn: {
-      paddingLeft: 4,
-    },
-    scrollContent: {
-      paddingHorizontal: 20,
-      paddingTop: 16,
-      paddingBottom: 30,
-    },
-    sectionTitle: {
-      color: c.text,
-      fontSize: 15,
-      fontWeight: '700',
-      marginTop: 12,
-      marginBottom: 12,
-    },
-    statsGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'space-between',
-      gap: 8,
-      marginBottom: 8,
-    },
-    statCard: {
-      backgroundColor: c.card,
-      padding: 14,
-      borderRadius: 14,
-      marginBottom: 8,
-      borderWidth: 1,
-      borderColor: c.border,
-    },
-    iconCircle: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: 10,
-    },
-    statValue: {
-      color: c.text,
-      fontSize: 18,
-      fontWeight: '700',
-    },
-    statLabel: {
-      color: c.muted,
-      fontSize: 11,
-      marginTop: 4,
-    },
-    actionsGrid: {
-      flexDirection: 'column',
-      gap: 10,
-      marginBottom: 10,
-    },
-    actionCard: {
-      backgroundColor: c.card,
-      padding: 16,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: c.border,
-    },
-    adminHighlightCard: {
-      borderColor: 'rgba(255, 118, 34, 0.4)',
-      backgroundColor: c.highlight,
-    },
-    cardHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    actionTitle: {
-      color: c.text,
-      fontSize: 15,
-      fontWeight: '700',
-      marginTop: 8,
-    },
-    actionSub: {
-      color: c.muted,
-      fontSize: 12,
-      marginTop: 2,
-    },
-    activityList: {
-      backgroundColor: c.card,
-      borderRadius: 14,
-      padding: 16,
-      borderWidth: 1,
-      borderColor: c.border,
-    },
-    activityItem: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      marginBottom: 14,
-    },
-    activityDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: c.primary,
-      marginTop: 5,
-      marginRight: 10,
-    },
-    activityText: {
-      color: c.label,
-      fontSize: 13,
-      fontWeight: '500',
-    },
-    activityTime: {
-      color: c.muted,
-      fontSize: 11,
-      marginTop: 2,
-    },
+    roleBadgeText: { color: c.primary, fontSize: 11, fontWeight: '700' },
+    profileIconBtn: { paddingLeft: 4 },
+    scrollContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 30 },
+    sectionTitle: { color: c.text, fontSize: 15, fontWeight: '700', marginTop: 12, marginBottom: 12 },
+    statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
+    statCard: { backgroundColor: c.card, padding: 14, borderRadius: 14, marginBottom: 8, borderWidth: 1, borderColor: c.border },
+    iconCircle: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+    statValue: { color: c.text, fontSize: 18, fontWeight: '700' },
+    statLabel: { color: c.muted, fontSize: 11, marginTop: 4 },
+    actionsGrid: { flexDirection: 'column', gap: 10, marginBottom: 10 },
+    actionCard: { backgroundColor: c.card, padding: 16, borderRadius: 14, borderWidth: 1, borderColor: c.border },
+    adminHighlightCard: { borderColor: 'rgba(255, 118, 34, 0.4)', backgroundColor: c.highlight },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    actionTitle: { color: c.text, fontSize: 15, fontWeight: '700', marginTop: 8 },
+    actionSub: { color: c.muted, fontSize: 12, marginTop: 2 },
+    activityList: { backgroundColor: c.card, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border },
+    activityItem: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
+    activityDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.primary, marginTop: 5, marginRight: 10 },
+    activityText: { color: c.label, fontSize: 13, fontWeight: '500' },
+    activityTime: { color: c.muted, fontSize: 11, marginTop: 2 },
   });
 
 export default DashboardScreen;

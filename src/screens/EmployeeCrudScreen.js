@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -13,22 +13,25 @@ import {
   Platform,
   LayoutAnimation,
   UIManager,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import Toast from '../components/Toast';
+import {
+  getEmployees,
+  createEmployee,
+  updateEmployee,
+  deleteEmployee,
+} from '../services/employeeService';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-const INITIAL_EMPLOYEES = [
-  { id: '1', name: 'Elena S.', role: 'Head Waiter', email: 'elena@gourmet.com', active: true },
-  { id: '2', name: 'Julien M.', role: 'Manager', email: 'julien@gourmet.com', active: true },
-  { id: '3', name: 'Laurent Mercier', role: 'Head Chef', email: 'laurent@gourmet.com', active: true },
-];
 
 const ROLES_LIST = ['Waiter', 'Head Waiter', 'Chef', 'Head Chef', 'Manager'];
 
@@ -40,7 +43,10 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
   const currentRole = route?.params?.role || authContext?.user?.role || authContext?.userRole || 'admin';
   const isAdmin = String(currentRole).toLowerCase() === 'admin';
 
-  const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [selectedRoleFilter, setSelectedRoleFilter] = useState('All');
@@ -69,6 +75,28 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
 
   const hideToast = () => {
     setToastConfig((prev) => ({ ...prev, visible: false }));
+  };
+
+  // Backend se real data. Error aaye to chup nahi rehna, Toast mein asal wajah dikhani hai.
+  const fetchEmployeesData = async () => {
+    try {
+      const data = await getEmployees();
+      setEmployees(data);
+    } catch (err) {
+      showToast(err?.message || 'Could not load employees from server.', 'error');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEmployeesData();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchEmployeesData();
   };
 
   const handleBackNavigation = () => {
@@ -132,27 +160,32 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
     setModalVisible(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim() || !email.trim()) {
       showToast('Please fill in all required fields.', 'error');
       return;
     }
 
-    if (editingId) {
-      setEmployees(employees.map((e) => (e.id === editingId ? { ...e, name, email, role, active } : e)));
-      showToast(`${name}'s profile updated!`, 'success');
-    } else {
-      const newEmp = {
-        id: Date.now().toString(),
-        name,
-        email,
-        role,
-        active,
-      };
-      setEmployees([...employees, newEmp]);
-      showToast(`${name} added to staff!`, 'success');
+    try {
+      setSaving(true);
+      const payload = { name: name.trim(), email: email.trim(), role, active };
+      if (editingId) {
+        const updated = await updateEmployee(editingId, payload);
+        setEmployees(employees.map((e) => (e.id === editingId ? { ...e, ...updated } : e)));
+        showToast(`${name}'s profile updated!`, 'success');
+      } else {
+        const created = await createEmployee(payload);
+        setEmployees([...employees, created]);
+        showToast(`${name} added to staff!`, 'success');
+      }
+      setModalVisible(false);
+    } catch (err) {
+      // Asal backend error dikhao (jaise "duplicate key", "Email already exists"),
+      // generic message se pata nahi chalta masla kya tha.
+      showToast(err?.message || 'Failed to save employee data.', 'error');
+    } finally {
+      setSaving(false);
     }
-    setModalVisible(false);
   };
 
   const openDeleteModal = (emp) => {
@@ -160,13 +193,21 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
     setDeleteConfirmVisible(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deletingEmployee) {
       const empName = deletingEmployee.name;
-      setEmployees(employees.filter((e) => e.id !== deletingEmployee.id));
-      setDeleteConfirmVisible(false);
-      setDeletingEmployee(null);
-      showToast(`${empName} removed from staff!`, 'error');
+      try {
+        setSaving(true);
+        await deleteEmployee(deletingEmployee.id);
+        setEmployees(employees.filter((e) => e.id !== deletingEmployee.id));
+        showToast(`${empName} removed from staff!`, 'error');
+      } catch (err) {
+        showToast(err?.message || 'Failed to delete employee.', 'error');
+      } finally {
+        setSaving(false);
+        setDeleteConfirmVisible(false);
+        setDeletingEmployee(null);
+      }
     }
   };
 
@@ -189,8 +230,16 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
 
       {/* Header Section */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBackNavigation} style={styles.backBtn} activeOpacity={0.7}>
-          <Text style={styles.backText}>‹ Back</Text>
+        <TouchableOpacity
+          onPress={handleBackNavigation}
+          style={styles.backBtn}
+          activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="chevron-back-outline" size={18} color={colors.primary} />
+            <Text style={styles.backText}>Back</Text>
+          </View>
         </TouchableOpacity>
 
         <View style={styles.titleWrapper}>
@@ -220,64 +269,87 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
         </ScrollView>
       </View>
 
-      {/* Staff List */}
-      <ScrollView contentContainerStyle={styles.listContainer} showsVerticalScrollIndicator={false}>
-        {filteredEmployees.map((emp) => {
-          const isExpanded = expandedId === emp.id;
+      {/* Loading state (pehli baar backend se data aane tak) */}
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color={colors.primary} size="large" />
+          <Text style={styles.loadingText}>Loading employees...</Text>
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+              progressBackgroundColor={colors.card}
+            />
+          }
+        >
+          {filteredEmployees.length === 0 ? (
+            <Text style={styles.emptyText}>No employees found.</Text>
+          ) : (
+            filteredEmployees.map((emp) => {
+              const isExpanded = expandedId === emp.id;
 
-          return (
-            <TouchableOpacity
-              key={emp.id}
-              style={styles.card}
-              onPress={() => toggleExpand(emp.id)}
-              activeOpacity={0.9}
-            >
-              <View style={styles.empDetails}>
-                <View style={styles.avatarCircle}>
-                  <Text style={styles.avatarText}>{emp.name ? emp.name.charAt(0).toUpperCase() : '?'}</Text>
-                </View>
-                <View style={{ flex: 1, paddingRight: 8 }}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.empName} numberOfLines={1}>{emp.name}</Text>
-                    <View style={[styles.statusDot, { backgroundColor: emp.active ? colors.success : colors.danger }]} />
+              return (
+                <TouchableOpacity
+                  key={emp.id}
+                  style={styles.card}
+                  onPress={() => toggleExpand(emp.id)}
+                  activeOpacity={0.9}
+                >
+                  <View style={styles.empDetails}>
+                    <View style={styles.avatarCircle}>
+                      <Text style={styles.avatarText}>{emp.name ? emp.name.charAt(0).toUpperCase() : '?'}</Text>
+                    </View>
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <View style={styles.nameRow}>
+                        <Text style={styles.empName} numberOfLines={1}>{emp.name}</Text>
+                        <View style={[styles.statusDot, { backgroundColor: emp.active ? colors.success : colors.danger }]} />
+                      </View>
+                      <Text style={styles.empRole}>{emp.role}</Text>
+                      <Text style={styles.empEmail} numberOfLines={1}>{emp.email}</Text>
+                    </View>
+                    <Text style={styles.expandChevron}>{isExpanded ? '▲' : '▼'}</Text>
                   </View>
-                  <Text style={styles.empRole}>{emp.role}</Text>
-                  <Text style={styles.empEmail} numberOfLines={1}>{emp.email}</Text>
-                </View>
-                <Text style={styles.expandChevron}>{isExpanded ? '▲' : '▼'}</Text>
-              </View>
 
-              {/* Detailed View & Action Buttons - Only rendered on tap */}
-              {isExpanded && (
-                <View style={styles.detailsContainer}>
-                  <View style={styles.divider} />
+                  {/* Detailed View & Action Buttons - Only rendered on tap */}
+                  {isExpanded && (
+                    <View style={styles.detailsContainer}>
+                      <View style={styles.divider} />
 
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Status:</Text>
-                    <Text style={[styles.infoValue, { color: emp.active ? colors.success : colors.danger }]}>
-                      {emp.active ? 'Active Employee' : 'Inactive / Suspended'}
-                    </Text>
-                  </View>
+                      <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Status:</Text>
+                        <Text style={[styles.infoValue, { color: emp.active ? colors.success : colors.danger }]}>
+                          {emp.active ? 'Active Employee' : 'Inactive / Suspended'}
+                        </Text>
+                      </View>
 
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Email:</Text>
-                    <Text style={styles.infoValue}>{emp.email}</Text>
-                  </View>
+                      <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Email:</Text>
+                        <Text style={styles.infoValue}>{emp.email}</Text>
+                      </View>
 
-                  <View style={styles.actionRow}>
-                    <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(emp)} activeOpacity={0.7}>
-                      <Text style={styles.editText}>Edit</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.deleteBtn} onPress={() => openDeleteModal(emp)} activeOpacity={0.7}>
-                      <Text style={styles.deleteText}>Delete</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+                      <View style={styles.actionRow}>
+                        <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(emp)} activeOpacity={0.7}>
+                          <Text style={styles.editText}>Edit</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.deleteBtn} onPress={() => openDeleteModal(emp)} activeOpacity={0.7}>
+                          <Text style={styles.deleteText}>Delete</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </ScrollView>
+      )}
 
       {/* Delete Confirmation Modal */}
       <Modal visible={deleteConfirmVisible} animationType="fade" transparent onRequestClose={() => setDeleteConfirmVisible(false)}>
@@ -294,11 +366,20 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
               </Text>
 
               <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.cancelModalBtn} onPress={() => setDeleteConfirmVisible(false)}>
+                <TouchableOpacity style={styles.cancelModalBtn} onPress={() => setDeleteConfirmVisible(false)} disabled={saving}>
                   <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.saveModalBtn, { backgroundColor: colors.danger }]} onPress={confirmDelete} activeOpacity={0.8}>
-                  <Text style={styles.saveText}>Delete</Text>
+                <TouchableOpacity
+                  style={[styles.saveModalBtn, { backgroundColor: colors.danger }, saving && styles.btnDisabled]}
+                  onPress={confirmDelete}
+                  activeOpacity={0.8}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.saveText}>Delete</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -362,11 +443,20 @@ const EmployeeCrudScreen = ({ route, navigation }) => {
               </View>
 
               <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.cancelModalBtn} onPress={() => setModalVisible(false)}>
+                <TouchableOpacity style={styles.cancelModalBtn} onPress={() => setModalVisible(false)} disabled={saving}>
                   <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.saveModalBtn} onPress={handleSave} activeOpacity={0.8}>
-                  <Text style={styles.saveText}>Save</Text>
+                <TouchableOpacity
+                  style={[styles.saveModalBtn, saving && styles.btnDisabled]}
+                  onPress={handleSave}
+                  activeOpacity={0.8}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.saveText}>Save</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -413,6 +503,11 @@ const makeStyles = (c) =>
     activeFilterChip: { backgroundColor: c.primary, borderColor: c.primary },
     filterChipText: { color: c.icon, fontSize: 12, fontWeight: '500' },
     activeFilterChipText: { color: '#FFF', fontWeight: '700' },
+
+    // Loading / Empty
+    loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    loadingText: { color: c.muted, fontSize: 13, marginTop: 10 },
+    emptyText: { color: c.muted, textAlign: 'center', marginTop: 40, fontSize: 13 },
 
     // Card & List
     listContainer: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 30 },
@@ -492,8 +587,9 @@ const makeStyles = (c) =>
     modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 22, alignItems: 'center' },
     cancelModalBtn: { paddingHorizontal: 16, paddingVertical: 10, marginRight: 8 },
     cancelText: { color: c.icon, fontWeight: '600' },
-    saveModalBtn: { backgroundColor: c.primary, paddingHorizontal: 22, paddingVertical: 10, borderRadius: 8 },
+    saveModalBtn: { backgroundColor: c.primary, paddingHorizontal: 22, paddingVertical: 10, borderRadius: 8, minWidth: 64, alignItems: 'center' },
     saveText: { color: '#FFF', fontWeight: '700' },
+    btnDisabled: { opacity: 0.6 },
 
     // Security View
     restrictedContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },

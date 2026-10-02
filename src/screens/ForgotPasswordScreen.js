@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { supabase } from '../config/supabase';
 import {
   StyleSheet,
   Text,
@@ -18,6 +17,7 @@ import { validateEmail, validatePassword, getPasswordErrorMessage } from '../uti
 import Toast from '../components/Toast';
 import PasswordField from '../components/PasswordField';
 import { useTheme } from '../context/ThemeContext';
+import { forgotPassword, verifyOtp, resetPassword } from '../services/authService';
 
 export default function ForgotPasswordScreen({ navigation }) {
   const { isDark, colors } = useTheme();
@@ -41,7 +41,6 @@ export default function ForgotPasswordScreen({ navigation }) {
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
 
-  // Toast State (shared Toast component, theme-aware)
   const [toastConfig, setToastConfig] = useState({
     visible: false,
     message: '',
@@ -50,17 +49,13 @@ export default function ForgotPasswordScreen({ navigation }) {
 
   const otpInputs = useRef([]);
   const timerRef = useRef(null);
-  const navigationTimeoutRef = useRef(null);
 
-  // Cleanup timers on component unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      if (navigationTimeoutRef.current) clearTimeout(navigationTimeoutRef.current);
     };
   }, []);
 
-  // OTP Timer Logic
   useEffect(() => {
     if (step === 2) {
       startResendTimer();
@@ -95,10 +90,8 @@ export default function ForgotPasswordScreen({ navigation }) {
     setToastConfig((prev) => ({ ...prev, visible: false }));
   };
 
-  const [generatedOtp, setGeneratedOtp] = useState('');
-
-  // STEP 1: SEND OTP
-  const handleSendOtp = () => {
+  // STEP 1: SEND OTP VIA BACKEND
+  const handleSendOtp = async () => {
     setEmailError('');
     if (!email.trim()) {
       setEmailError('Email address is required.');
@@ -110,31 +103,25 @@ export default function ForgotPasswordScreen({ navigation }) {
     }
 
     setLoading(true);
-
-    // Generate dynamic 6-digit OTP
-    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(newOtp);
-
-    setTimeout(() => {
-      setLoading(false);
-      showToast(`OTP Sent! (Demo Code: ${newOtp})`, 'success');
+    try {
+      const msg = await forgotPassword(email.trim());
+      showToast(msg || 'OTP sent to your email!', 'success');
       setStep(2);
-    }, 1000);
+    } catch (err) {
+      showToast(err?.response?.data?.detail || err.message || 'Failed to send OTP.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // OTP Paste & Input Handler
   const handleOtpChange = (text, index) => {
     setOtpError('');
-
-    // Handle multi-character paste (e.g., "123456")
     if (text.length > 1) {
       const pastedArray = text.slice(0, 6).split('');
       const updatedOtp = [...otp];
-
       pastedArray.forEach((char, i) => {
         updatedOtp[i] = char;
       });
-
       setOtp(updatedOtp);
       const nextFocusIndex = Math.min(pastedArray.length, 5);
       otpInputs.current[nextFocusIndex]?.focus();
@@ -145,7 +132,6 @@ export default function ForgotPasswordScreen({ navigation }) {
     updatedOtp[index] = text;
     setOtp(updatedOtp);
 
-    // Auto-advance to next box
     if (text && index < 5) {
       otpInputs.current[index + 1]?.focus();
     }
@@ -162,8 +148,8 @@ export default function ForgotPasswordScreen({ navigation }) {
     }
   };
 
-  // STEP 2: VERIFY OTP
-  const handleVerifyOtp = () => {
+  // STEP 2: VERIFY OTP VIA BACKEND
+  const handleVerifyOtp = async () => {
     const enteredOtp = otp.join('');
     if (enteredOtp.length !== 6) {
       setOtpError('Please enter the complete 6-digit verification code.');
@@ -171,28 +157,34 @@ export default function ForgotPasswordScreen({ navigation }) {
     }
 
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const msg = await verifyOtp(email.trim(), enteredOtp);
+      showToast(msg || 'OTP Verified successfully!', 'success');
+      setStep(3);
+    } catch (err) {
+      setOtpError(err?.response?.data?.detail || err.message || 'Invalid code.');
+    } finally {
       setLoading(false);
-      if (enteredOtp === generatedOtp || enteredOtp === '123456') {
-        showToast('Email verified successfully.', 'success');
-        setStep(3);
-      } else {
-        setOtpError('Invalid verification code. Please check and try again.');
-      }
-    }, 800);
+    }
   };
 
-  const handleResendOtp = () => {
+  const handleResendOtp = async () => {
     if (!canResend) return;
-    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(newOtp);
-    showToast(`New code sent! (Demo Code: ${newOtp})`, 'success');
-    setOtp(['', '', '', '', '', '']);
-    startResendTimer();
+    setLoading(true);
+    try {
+      await forgotPassword(email.trim());
+      showToast('A new OTP has been sent to your email.', 'success');
+      setOtp(['', '', '', '', '', '']);
+      startResendTimer();
+    } catch (err) {
+      showToast(err?.response?.data?.detail || err.message || 'Resend failed.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // STEP 3: RESET PASSWORD
-  const handleResetPassword = () => {
+  // STEP 3: RESET PASSWORD VIA BACKEND
+  const handleResetPassword = async () => {
     let isValid = true;
     setPasswordError('');
     setConfirmPasswordError('');
@@ -207,15 +199,24 @@ export default function ForgotPasswordScreen({ navigation }) {
       isValid = false;
     }
 
-    if (isValid) {
-      setLoading(true);
+    if (!isValid) return;
+
+    setLoading(true);
+    try {
+      const msg = await resetPassword({
+        email: email.trim(),
+        otp: otp.join(''),
+        newPassword,
+        confirmPassword,
+      });
+      showToast(msg || 'Password updated successfully!', 'success');
       setTimeout(() => {
-        setLoading(false);
-        showToast('Your password has been reset successfully.', 'success');
-        navigationTimeoutRef.current = setTimeout(() => {
-          navigation.navigate('LoginScreen');
-        }, 1800);
-      }, 1000);
+        navigation.navigate('LoginScreen');
+      }, 1500);
+    } catch (err) {
+      showToast(err?.response?.data?.detail || err.message || 'Reset password failed.', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -237,9 +238,10 @@ export default function ForgotPasswordScreen({ navigation }) {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
 
-          {/* Dynamic Back Button */}
           <TouchableOpacity
             style={styles.backBtn}
+            activeOpacity={0.7}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             onPress={() => {
               if (step > 1) {
                 setStep(step - 1);
@@ -254,7 +256,6 @@ export default function ForgotPasswordScreen({ navigation }) {
             </View>
           </TouchableOpacity>
 
-          {/* STEP 1: EMAIL INPUT */}
           {step === 1 && (
             <View style={styles.card}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
@@ -295,7 +296,6 @@ export default function ForgotPasswordScreen({ navigation }) {
             </View>
           )}
 
-          {/* STEP 2: OTP INPUT */}
           {step === 2 && (
             <View style={styles.card}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
@@ -336,7 +336,6 @@ export default function ForgotPasswordScreen({ navigation }) {
                 )}
               </TouchableOpacity>
 
-              {/* Resend Timer Block */}
               <View style={styles.resendContainer}>
                 {canResend ? (
                   <TouchableOpacity onPress={handleResendOtp}>
@@ -349,7 +348,6 @@ export default function ForgotPasswordScreen({ navigation }) {
             </View>
           )}
 
-          {/* STEP 3: RESET PASSWORD */}
           {step === 3 && (
             <View style={styles.card}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>

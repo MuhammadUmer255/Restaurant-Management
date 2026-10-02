@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -8,12 +8,15 @@ import {
   FlatList,
   StatusBar,
   Platform,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Toast from '../components/Toast';
 import { formatCurrency } from '../utils/currency';
 import { useTheme } from '../context/ThemeContext';
+import { getOrders, updateOrderStatus } from '../services/orderService';
 
 const INITIAL_ORDERS = [
   {
@@ -62,6 +65,8 @@ export default function OrdersScreen({ navigation }) {
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [orders, setOrders] = useState(INITIAL_ORDERS);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('All');
 
   // Toast State
@@ -79,31 +84,57 @@ export default function OrdersScreen({ navigation }) {
     setToastConfig((prev) => ({ ...prev, visible: false }));
   };
 
+  const fetchOrdersData = async () => {
+    try {
+      const data = await getOrders();
+      setOrders(data);
+    } catch (err) {
+      console.log('Error fetching orders:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrdersData();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchOrdersData();
+  };
+
   const filteredOrders = orders.filter(
     (order) => selectedFilter === 'All' || order.status === selectedFilter
   );
 
-  const handleNextStatus = (orderId) => {
-    setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id === orderId) {
-          let nextStatus = o.status;
-          let toastMsg = '';
+  const handleNextStatus = async (orderId) => {
+    const targetOrder = orders.find((o) => o.id === orderId);
+    if (!targetOrder) return;
 
-          if (o.status === 'Pending') {
-            nextStatus = 'In Kitchen';
-            toastMsg = `Order ${o.id} sent to kitchen!`;
-          } else if (o.status === 'In Kitchen') {
-            nextStatus = 'Served';
-            toastMsg = `Order ${o.id} marked as served!`;
-          }
+    let nextStatus = targetOrder.status;
+    let toastMsg = '';
 
-          if (toastMsg) showToast(toastMsg, 'success');
-          return { ...o, status: nextStatus };
-        }
-        return o;
-      })
-    );
+    if (targetOrder.status === 'Pending') {
+      nextStatus = 'In Kitchen';
+      toastMsg = `Order ${targetOrder.id} sent to kitchen!`;
+    } else if (targetOrder.status === 'In Kitchen') {
+      nextStatus = 'Served';
+      toastMsg = `Order ${targetOrder.id} marked as served!`;
+    }
+
+    if (!toastMsg) return;
+
+    try {
+      await updateOrderStatus(orderId, nextStatus);
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
+      );
+      showToast(toastMsg, 'success');
+    } catch (err) {
+      showToast('Failed to update order status.', 'error');
+    }
   };
 
   const handleCheckout = (order) => {
@@ -185,6 +216,13 @@ export default function OrdersScreen({ navigation }) {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
         ListEmptyComponent={
           <Text style={{ color: colors.muted, textAlign: 'center', marginTop: 40, fontStyle: 'italic' }}>
             No orders found under "{selectedFilter}".

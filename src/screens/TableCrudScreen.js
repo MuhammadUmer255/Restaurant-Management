@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -12,11 +12,21 @@ import {
   StatusBar,
   Platform,
   KeyboardAvoidingView,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import Toast from '../components/Toast';
+import {
+  getTables,
+  createTable,
+  updateTable,
+  updateTableStatus,
+  deleteTable,
+} from '../services/tableService';
 
 const INITIAL_TABLES = [
   { id: '1', number: 'Table 1', seats: 2, status: 'Available', area: 'Indoor' },
@@ -37,6 +47,9 @@ export default function TableCrudScreen({ route, navigation }) {
   const isAdmin = String(currentRole).trim().toLowerCase() === 'admin';
 
   const [tables, setTables] = useState(INITIAL_TABLES);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [selectedArea, setSelectedArea] = useState('All');
 
   // Active Selected Item State
@@ -66,6 +79,27 @@ export default function TableCrudScreen({ route, navigation }) {
 
   const hideToast = () => {
     setToastConfig((prev) => ({ ...prev, visible: false }));
+  };
+
+  const fetchTablesData = async () => {
+    try {
+      const data = await getTables();
+      setTables(data);
+    } catch (err) {
+      console.log('Error fetching tables:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTablesData();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchTablesData();
   };
 
   // Filter Tables
@@ -124,18 +158,26 @@ export default function TableCrudScreen({ route, navigation }) {
   };
 
   // Confirm Delete Handler
-  const confirmDeleteTable = () => {
+  const confirmDeleteTable = async () => {
     if (selectedTable) {
       const tableName = selectedTable.number;
-      setTables((prev) => prev.filter((t) => t.id !== selectedTable.id));
-      setDeleteConfirmVisible(false);
-      setSelectedTable(null);
-      showToast(`${tableName} deleted successfully!`, 'error');
+      try {
+        setSaving(true);
+        await deleteTable(selectedTable.id);
+        setTables((prev) => prev.filter((t) => t.id !== selectedTable.id));
+        showToast(`${tableName} deleted successfully!`, 'error');
+      } catch (err) {
+        showToast('Failed to delete table.', 'error');
+      } finally {
+        setSaving(false);
+        setDeleteConfirmVisible(false);
+        setSelectedTable(null);
+      }
     }
   };
 
   // 4. Save Details in Form Modal
-  const handleSaveTable = () => {
+  const handleSaveTable = async () => {
     if (!tableNumber.trim() || !seats.trim()) {
       showToast('Please enter table name/number and seats count.', 'error');
       return;
@@ -147,44 +189,49 @@ export default function TableCrudScreen({ route, navigation }) {
       return;
     }
 
-    if (currentAction === 'EDIT' && selectedTable) {
-      setTables((prev) =>
-        prev.map((t) =>
-          t.id === selectedTable.id
-            ? { ...t, number: tableNumber, seats: parsedSeats, area }
-            : t
-        )
-      );
-      showToast(`${tableNumber} updated successfully!`, 'success');
-    } else {
-      const newTable = {
-        id: Date.now().toString(),
-        number: tableNumber,
-        seats: parsedSeats,
-        status: 'Available',
-        area,
-      };
-      setTables((prev) => [newTable, ...prev]);
-      showToast(`${tableNumber} added successfully!`, 'success');
-    }
+    try {
+      setSaving(true);
+      const payload = { number: tableNumber.trim(), seats: parsedSeats, area };
 
-    setFormModalVisible(false);
-    setSelectedTable(null);
+      if (currentAction === 'EDIT' && selectedTable) {
+        const updated = await updateTable(selectedTable.id, payload);
+        setTables((prev) =>
+          prev.map((t) =>
+            t.id === selectedTable.id ? { ...t, ...updated } : t
+          )
+        );
+        showToast(`${tableNumber} updated successfully!`, 'success');
+      } else {
+        const created = await createTable(payload);
+        setTables((prev) => [created, ...prev]);
+        showToast(`${tableNumber} added successfully!`, 'success');
+      }
+      setFormModalVisible(false);
+      setSelectedTable(null);
+    } catch (err) {
+      showToast('Failed to save table.', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const toggleStatus = (id) => {
+  const toggleStatus = async (id) => {
     const statuses = ['Available', 'Occupied', 'Reserved'];
-    setTables((prev) =>
-      prev.map((t) => {
-        if (t.id === id) {
-          const nextIndex = (statuses.indexOf(t.status) + 1) % statuses.length;
-          const nextStatus = statuses[nextIndex];
-          showToast(`${t.number} status changed to ${nextStatus}`, 'success');
-          return { ...t, status: nextStatus };
-        }
-        return t;
-      })
-    );
+    const tableToUpdate = tables.find((t) => t.id === id);
+    if (!tableToUpdate) return;
+
+    const nextIndex = (statuses.indexOf(tableToUpdate.status) + 1) % statuses.length;
+    const nextStatus = statuses[nextIndex];
+
+    try {
+      await updateTableStatus(id, nextStatus);
+      setTables((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, status: nextStatus } : t))
+      );
+      showToast(`${tableToUpdate.number} status changed to ${nextStatus}`, 'success');
+    } catch (err) {
+      showToast('Failed to update table status.', 'error');
+    }
   };
 
   const getStatusStyle = (status) => {
@@ -222,8 +269,12 @@ export default function TableCrudScreen({ route, navigation }) {
           onPress={() => navigation?.goBack()}
           style={styles.backBtn}
           activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <Text style={styles.backText}>‹ Back</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="chevron-back-outline" size={18} color={colors.primary} />
+            <Text style={styles.backText}>Back</Text>
+          </View>
         </TouchableOpacity>
 
         <View style={styles.roleBadgeContainer}>

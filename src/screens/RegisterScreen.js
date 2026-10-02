@@ -17,17 +17,18 @@ import { validateEmail, validatePassword, getPasswordErrorMessage } from '../uti
 import Toast from '../components/Toast';
 import PasswordField from '../components/PasswordField';
 import { useTheme } from '../context/ThemeContext';
-
-const API_URL = 'http://10.0.2.2:8000';
+import { useAuth } from '../context/AuthContext';
+import { registerUser } from '../services/authService';
 
 export default function RegisterScreen({ navigation }) {
   const { isDark, colors } = useTheme();
+   const { register } = useAuth();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  // Mode: 'admin' (Register Restaurant) | 'user' (Register Staff / User)
+  // Mode: 'admin' | 'user'
   const [selectedRole, setSelectedRole] = useState('admin');
 
-  // Common & Admin Fields
+  // Fields
   const [fullName, setFullName] = useState('');
   const [restaurantName, setRestaurantName] = useState('');
   const [email, setEmail] = useState('');
@@ -66,16 +67,14 @@ export default function RegisterScreen({ navigation }) {
     setPasswordError('');
     setConfirmPasswordError('');
 
-    if (selectedRole === 'admin') {
-      if (!restaurantName.trim()) {
-        setRestaurantNameError('Restaurant name is required.');
-        isValid = false;
-      }
-    } else {
-      if (!fullName.trim()) {
-        setFullNameError('Full name is required.');
-        isValid = false;
-      }
+    if (!fullName.trim()) {
+      setFullNameError('Full name is required.');
+      isValid = false;
+    }
+
+    if (selectedRole === 'admin' && !restaurantName.trim()) {
+      setRestaurantNameError('Restaurant name is required.');
+      isValid = false;
     }
 
     if (!email.trim()) {
@@ -100,56 +99,42 @@ export default function RegisterScreen({ navigation }) {
 
     setLoading(true);
 
-try {
-  const response = await fetch(`${API_URL}/api/v1/auth/register`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      full_name:
+    try {
+      const payload = {
+        fullName: fullName.trim(),
+        restaurantName: selectedRole === 'admin' ? restaurantName.trim() : null,
+        email: email.trim().toLowerCase(),
+        role: selectedRole,
+        designation: selectedRole === 'user' ? staffRole : 'Restaurant Admin',
+        password,
+        confirmPassword,
+      };
+
+      if (register) {
+        await register(payload);
+      } else {
+        await registerUser(payload);
+      }
+
+      showToast(
         selectedRole === 'admin'
-          ? restaurantName.trim()
-          : fullName.trim(),
-      restaurant_name:
-        selectedRole === 'admin'
-          ? restaurantName.trim()
-          : null,
-      email: email.trim(),
-      role: selectedRole,
-      designation:
-        selectedRole === 'user'
-          ? staffRole
-          : 'Restaurant Admin',
-      password,
-      confirm_password: confirmPassword,
-    }),
-  });
+          ? 'Admin account registered! Redirecting to login...'
+          : `Staff account (${staffRole}) registered! Redirecting to login...`,
+        'success'
+      );
 
-  const data = await response.json();
-
-  if (data.message === 'Registration successful!') {
-    showToast(
-      selectedRole === 'admin'
-        ? 'Restaurant Admin account registered successfully!'
-        : `Staff account (${staffRole}) registered successfully!`,
-      'success'
-    );
-
-    setTimeout(() => {
-      navigation.navigate('LoginScreen');
-    }, 1500);
-  } else {
-    showToast(data.error || data.message || 'Registration failed!', 'error');
-  }
-} catch (error) {
-  showToast(
-    'Backend se connection nahi ho saka. Make sure server is running.',
-    'error'
-  );
-} finally {
-  setLoading(false);
-}
+      // Registration ke baad seedha LoginScreen bhejenge
+      setTimeout(() => {
+        navigation.navigate('LoginScreen');
+      }, 1500);
+    } catch (error) {
+      showToast(
+        error.response?.data?.detail || error.message || 'Registration failed!',
+        'error'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -160,7 +145,6 @@ try {
         translucent={false}
       />
 
-      {/* Top Floating Toast */}
       <Toast
         visible={toastConfig.visible}
         message={toastConfig.message}
@@ -173,8 +157,12 @@ try {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            activeOpacity={0.7}
+          >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons name="chevron-back-outline" size={16} color={colors.primary} />
               <Text style={styles.backText}>Back to Login</Text>
@@ -256,8 +244,22 @@ try {
           </View>
 
           <View style={styles.formCard}>
-            {/* ADMIN INTERFACE FIELDS */}
-            {selectedRole === 'admin' ? (
+            {/* Common Name Field */}
+            <Text style={styles.label}>Your Full Name</Text>
+            <TextInput
+              style={[styles.input, fullNameError ? styles.inputErrorBorder : null]}
+            
+              placeholderTextColor={colors.muted}
+              value={fullName}
+              onChangeText={(text) => {
+                setFullName(text);
+                setFullNameError('');
+              }}
+            />
+            {!!fullNameError && <Text style={styles.fieldErrorText}>{fullNameError}</Text>}
+
+            {/* ADMIN EXTRA FIELDS */}
+            {selectedRole === 'admin' && (
               <>
                 <Text style={styles.label}>Restaurant Name</Text>
                 <TextInput
@@ -271,53 +273,12 @@ try {
                   }}
                 />
                 {!!restaurantNameError && <Text style={styles.fieldErrorText}>{restaurantNameError}</Text>}
-
-                <Text style={styles.label}>Admin Email Address</Text>
-                <TextInput
-                  style={[styles.input, emailError ? styles.inputErrorBorder : null]}
-                  placeholder="admin@gourmetbistro.com"
-                  placeholderTextColor={colors.muted}
-                  value={email}
-                  onChangeText={(text) => {
-                    setEmail(text);
-                    setEmailError('');
-                  }}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-                {!!emailError && <Text style={styles.fieldErrorText}>{emailError}</Text>}
               </>
-            ) : (
-              /* USER / STAFF INTERFACE FIELDS */
+            )}
+
+            {/* USER EXTRA FIELDS */}
+            {selectedRole === 'user' && (
               <>
-                <Text style={styles.label}>Full Name</Text>
-                <TextInput
-                  style={[styles.input, fullNameError ? styles.inputErrorBorder : null]}
-                  placeholder="e.g. Alex Johnson"
-                  placeholderTextColor={colors.muted}
-                  value={fullName}
-                  onChangeText={(text) => {
-                    setFullName(text);
-                    setFullNameError('');
-                  }}
-                />
-                {!!fullNameError && <Text style={styles.fieldErrorText}>{fullNameError}</Text>}
-
-                <Text style={styles.label}>Staff Work Email</Text>
-                <TextInput
-                  style={[styles.input, emailError ? styles.inputErrorBorder : null]}
-                  placeholder="staff@gourmetbistro.com"
-                  placeholderTextColor={colors.muted}
-                  value={email}
-                  onChangeText={(text) => {
-                    setEmail(text);
-                    setEmailError('');
-                  }}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-                {!!emailError && <Text style={styles.fieldErrorText}>{emailError}</Text>}
-
                 <Text style={styles.label}>Staff Designation / Role</Text>
                 <View style={styles.staffRoleRow}>
                   {['Waiter', 'Chef', 'Staff'].map((r) => (
@@ -344,6 +305,23 @@ try {
               </>
             )}
 
+            {/* EMAIL FIELD */}
+            <Text style={styles.label}>Email Address</Text>
+            <TextInput
+              style={[styles.input, emailError ? styles.inputErrorBorder : null]}
+              placeholder="user@example.com"
+              placeholderTextColor={colors.muted}
+              value={email}
+              onChangeText={(text) => {
+                setEmail(text);
+                setEmailError('');
+              }}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            {!!emailError && <Text style={styles.fieldErrorText}>{emailError}</Text>}
+
+            {/* PASSWORDS */}
             <Text style={styles.label}>Password</Text>
             <PasswordField
               style={[styles.input, passwordError ? styles.inputErrorBorder : null]}
@@ -353,7 +331,8 @@ try {
               onChangeText={(text) => {
                 setPassword(text);
                 setPasswordError('');
-              }}/>
+              }}
+            />
             {!!passwordError && <Text style={styles.fieldErrorText}>{passwordError}</Text>}
 
             <Text style={styles.label}>Confirm Password</Text>
@@ -365,7 +344,8 @@ try {
               onChangeText={(text) => {
                 setConfirmPassword(text);
                 setConfirmPasswordError('');
-              }}/>
+              }}
+            />
             {!!confirmPasswordError && <Text style={styles.fieldErrorText}>{confirmPasswordError}</Text>}
 
             <TouchableOpacity
@@ -396,15 +376,11 @@ const makeStyles = (c) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: c.bg },
     scrollContent: { padding: 20, justifyContent: 'center', flexGrow: 1 },
-
     backBtn: { marginBottom: 16 },
     backText: { color: c.primary, fontWeight: '700', fontSize: 14 },
-
     headerContainer: { marginBottom: 20 },
     title: { color: c.text, fontSize: 24, fontWeight: '800' },
     subtitle: { color: c.muted, fontSize: 13, lineHeight: 18, marginTop: 4 },
-
-    /* Role Switcher Tabs */
     roleToggleContainer: {
       flexDirection: 'row',
       backgroundColor: c.card,
@@ -414,28 +390,11 @@ const makeStyles = (c) =>
       borderWidth: 1,
       borderColor: c.border,
     },
-    roleTab: {
-      flex: 1,
-      paddingVertical: 10,
-      borderRadius: 8,
-      alignItems: 'center',
-    },
-    roleTabActive: {
-      backgroundColor: c.primary,
-    },
-    tabContentRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    roleTabText: {
-      color: c.icon,
-      fontSize: 12,
-      fontWeight: '700',
-    },
-    roleTabTextActive: {
-      color: '#FFFFFF',
-    },
-
+    roleTab: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
+    roleTabActive: { backgroundColor: c.primary },
+    tabContentRow: { flexDirection: 'row', alignItems: 'center' },
+    roleTabText: { color: c.icon, fontSize: 12, fontWeight: '700' },
+    roleTabTextActive: { color: '#FFFFFF' },
     formCard: {
       backgroundColor: c.card,
       borderRadius: 16,
@@ -456,13 +415,7 @@ const makeStyles = (c) =>
     },
     inputErrorBorder: { borderColor: c.danger },
     fieldErrorText: { color: c.danger, fontSize: 12, marginTop: 4, fontWeight: '500' },
-
-    staffRoleRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginTop: 4,
-      marginBottom: 6,
-    },
+    staffRoleRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, marginBottom: 6 },
     roleChip: {
       flex: 1,
       backgroundColor: c.bg,
@@ -473,20 +426,9 @@ const makeStyles = (c) =>
       alignItems: 'center',
       marginHorizontal: 3,
     },
-    activeRoleChip: {
-      borderColor: c.primary,
-      backgroundColor: 'rgba(255, 118, 34, 0.15)',
-    },
-    roleChipText: {
-      color: c.icon,
-      fontSize: 12,
-      fontWeight: '600',
-    },
-    activeRoleChipText: {
-      color: c.primary,
-      fontWeight: '700',
-    },
-
+    activeRoleChip: { borderColor: c.primary, backgroundColor: 'rgba(255, 118, 34, 0.15)' },
+    roleChipText: { color: c.icon, fontSize: 12, fontWeight: '600' },
+    activeRoleChipText: { color: c.primary, fontWeight: '700' },
     registerBtn: {
       backgroundColor: c.primary,
       paddingVertical: 14,

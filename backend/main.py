@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
 from pydantic import BaseModel, EmailStr
 
@@ -21,6 +22,14 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 app = FastAPI(title="GourmetOS Backend")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
@@ -841,7 +850,7 @@ def dashboard():
             "error": str(e)
         }
 
-@app.post("/forgot-password")
+@app.post("/api/v1/auth/forgot-password")
 def forgot_password(request: ForgotPasswordRequest):
     try:
         email = request.email.strip().lower()
@@ -928,6 +937,8 @@ class VerifyOTPRequest(BaseModel):
 
 
 @app.post("/verify-otp")
+@app.post("/api/v1/verify-otp")
+@app.post("/api/v1/auth/verify-otp")
 def verify_otp(request: VerifyOTPRequest):
     try:
         email = request.email.strip().lower()
@@ -998,6 +1009,8 @@ class ResetPasswordRequest(BaseModel):
 
 
 @app.post("/reset-password")
+@app.post("/api/v1/reset-password")
+@app.post("/api/v1/auth/reset-password")
 def reset_password(request: ResetPasswordRequest):
     try:
         email = request.email.strip().lower()
