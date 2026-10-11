@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import { Alert } from 'react-native';
+import api from '../config/api'; // Make sure ye import ho
 import {
   StyleSheet,
   Text,
@@ -48,6 +50,7 @@ export default function LoginScreen({ navigation }) {
   };
 
   const handleLogin = async () => {
+    Alert.alert("URL Check", "App is using: " + api.defaults.baseURL);
     let isValid = true;
     setEmailError('');
     setPasswordError('');
