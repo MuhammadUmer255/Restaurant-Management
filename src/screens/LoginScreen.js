@@ -17,7 +17,6 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { validateEmail } from '../utils/authValidation';
 import Toast from '../components/Toast';
-import PasswordField from '../components/PasswordField';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
@@ -27,6 +26,9 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Password visibility state
+  const [showPassword, setShowPassword] = useState(false);
 
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -67,7 +69,6 @@ export default function LoginScreen({ navigation }) {
 
     setLoading(true);
     try {
-      // Login execute hone ke baad backend se registered user aur details ayen gi
       const userObj = await login({ email: email.trim(), password });
       const roleLabel = userObj?.role === 'admin' ? 'Admin Manager' : 'Staff / User';
       showToast(`Signed in as ${roleLabel}!`, 'success');
@@ -103,6 +104,7 @@ export default function LoginScreen({ navigation }) {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           <View style={styles.headerContainer}>
             <View style={styles.logoBadge}>
@@ -116,8 +118,8 @@ export default function LoginScreen({ navigation }) {
           </View>
 
           <View style={styles.card}>
+            {/* EMAIL FIELD */}
             <Text style={styles.label}>Email Address</Text>
-
             <View style={[styles.inputWrapper, emailError ? styles.inputErrorBorder : null]}>
               <Ionicons name="mail-outline" size={18} color={colors.icon} style={styles.inputIcon} />
               <TextInput
@@ -135,17 +137,26 @@ export default function LoginScreen({ navigation }) {
             </View>
             {!!emailError && <Text style={styles.fieldErrorText}>{emailError}</Text>}
 
+            {/* PASSWORD FIELD - Fixed Box Border & Visibility Icon */}
             <Text style={styles.label}>Password</Text>
-            <PasswordField
-              style={[passwordError ? styles.inputErrorBorder : null]}
-              value={password}
-              onChangeText={(val) => {
-                setPassword(val);
-                setPasswordError('');
-              }}
-              placeholder="Enter your password"
-              placeholderTextColor={colors.muted}
-            />
+            <View style={[styles.inputWrapper, passwordError ? styles.inputErrorBorder : null]}>
+              <Ionicons name="lock-closed-outline" size={18} color={colors.icon} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={(val) => {
+                  setPassword(val);
+                  setPasswordError('');
+                }}
+                placeholder="Enter your password"
+                placeholderTextColor={colors.muted}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: 4 }}>
+                <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color={colors.icon} />
+              </TouchableOpacity>
+            </View>
             {!!passwordError && <Text style={styles.fieldErrorText}>{passwordError}</Text>}
 
             <TouchableOpacity

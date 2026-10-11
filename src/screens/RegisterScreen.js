@@ -248,7 +248,7 @@ export default function RegisterScreen({ navigation }) {
             <Text style={styles.label}>Your Full Name</Text>
             <TextInput
               style={[styles.input, fullNameError ? styles.inputErrorBorder : null]}
-            
+              placeholder="Full Name"
               placeholderTextColor={colors.muted}
               value={fullName}
               onChangeText={(text) => {
