@@ -32,6 +32,16 @@ app.add_middleware(
 )
 
 
+def get_all_supabase_users():
+    """Helper to safely fetch users list from Supabase admin SDK"""
+    res = supabase.auth.admin.list_users(page=1, per_page=1000)
+    if hasattr(res, 'users'):
+        return res.users
+    elif isinstance(res, list):
+        return res
+    return []
+
+
 @app.get("/")
 def home():
     return {"message": "GourmetOS Backend is running!"}
@@ -40,20 +50,17 @@ def home():
 @app.get("/supabase-test")
 def supabase_test():
     try:
-        result = supabase.auth.admin.list_users(page=1, per_page=1)
-
+        users = get_all_supabase_users()
         return {
             "message": "Supabase API connection successful!",
-            "users_found": len(result)
+            "users_found": len(users)
         }
-
     except Exception as e:
         return {
             "message": "Supabase API connection failed!",
             "error": str(e)
         }
 
-    
 
 class RegisterRequest(BaseModel):
     full_name: str
@@ -64,21 +71,19 @@ class RegisterRequest(BaseModel):
     password: str
     confirm_password: str
 
+
 class ForgotPasswordRequest(BaseModel):
     email: str
+
 
 @app.post("/api/v1/auth/register")
 def register(request: RegisterRequest):
     try:
         if request.password != request.confirm_password:
-            return {
-                "message": "Passwords do not match."
-            }
+            return {"message": "Passwords do not match."}
 
         if request.role not in ["admin", "user"]:
-            return {
-                "message": "Invalid role."
-            }
+            return {"message": "Invalid role."}
 
         auth_response = supabase.auth.admin.create_user({
             "email": request.email,
@@ -108,6 +113,7 @@ def register(request: RegisterRequest):
             "error": str(e)
         }
 
+
 class EmployeeCreate(BaseModel):
     full_name: str
     email: EmailStr
@@ -120,6 +126,7 @@ class EmployeeUpdate(BaseModel):
     email: EmailStr | None = None
     role: str | None = None
     active: bool | None = None
+
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -159,6 +166,7 @@ def login(request: LoginRequest):
             "error": str(e)
         }
 
+
 @app.post("/api/v1/employees")
 def create_employee(request: EmployeeCreate):
     try:
@@ -184,6 +192,8 @@ def create_employee(request: EmployeeCreate):
             "message": "Employee creation failed!",
             "error": str(e)
         }
+
+
 @app.get("/api/v1/employees")
 def get_employees():
     try:
@@ -205,6 +215,7 @@ def get_employees():
             "message": "Failed to fetch employees!",
             "error": str(e)
         }
+
 
 @app.put("/api/v1/employees/{employee_id}")
 def update_employee(employee_id: str, request: EmployeeUpdate):
@@ -230,26 +241,15 @@ def update_employee(employee_id: str, request: EmployeeUpdate):
             "error": str(e)
         }
 
+
 @app.delete("/api/v1/employees/{employee_id}")
 def delete_employee(employee_id: str):
     try:
-        response = (
-            supabase
-            .table("employees")
-            .delete()
-            .eq("id", employee_id)
-            .execute()
-        )
-
-        return {
-            "message": "Employee deleted successfully!"
-        }
-
+        supabase.table("employees").delete().eq("id", employee_id).execute()
+        return {"message": "Employee deleted successfully!"}
     except Exception as e:
-        return {
-            "message": "Employee deletion failed!",
-            "error": str(e)
-        }
+        return {"message": "Employee deletion failed!", "error": str(e)}
+
 
 class MenuItemCreate(BaseModel):
     name: str
@@ -263,6 +263,7 @@ class MenuItemUpdate(BaseModel):
     price: float | None = None
     category: str | None = None
     available: bool | None = None       
+
 
 @app.post("/api/v1/menu-items")
 def create_menu_item(request: MenuItemCreate):
@@ -289,6 +290,8 @@ def create_menu_item(request: MenuItemCreate):
             "message": "Menu item creation failed!",
             "error": str(e)
         }
+
+
 @app.get("/api/v1/menu-items")
 def get_menu_items():
     try:
@@ -310,6 +313,7 @@ def get_menu_items():
             "message": "Failed to fetch menu items!",
             "error": str(e)
         }   
+
 
 @app.put("/api/v1/menu-items/{menu_item_id}")
 def update_menu_item(menu_item_id: str, request: MenuItemUpdate):
@@ -335,26 +339,15 @@ def update_menu_item(menu_item_id: str, request: MenuItemUpdate):
             "error": str(e)
         }  
 
+
 @app.delete("/api/v1/menu-items/{menu_item_id}")
 def delete_menu_item(menu_item_id: str):
     try:
-        response = (
-            supabase
-            .table("menu_items")
-            .delete()
-            .eq("id", menu_item_id)
-            .execute()
-        )
-
-        return {
-            "message": "Menu item deleted successfully!"
-        }
-
+        supabase.table("menu_items").delete().eq("id", menu_item_id).execute()
+        return {"message": "Menu item deleted successfully!"}
     except Exception as e:
-        return {
-            "message": "Menu item deletion failed!",
-            "error": str(e)
-        }
+        return {"message": "Menu item deletion failed!", "error": str(e)}
+
 
 class TableCreate(BaseModel):
     table_number: int
@@ -372,6 +365,7 @@ class TableUpdate(BaseModel):
     zone: str | None = None
     reserved_customer: str | None = None
     reservation_time: str | None = None
+
 
 @app.post("/api/v1/tables")
 def create_table(request: TableCreate):
@@ -401,6 +395,7 @@ def create_table(request: TableCreate):
             "error": str(e)
         }
 
+
 @app.get("/api/v1/tables")
 def get_tables():
     try:
@@ -422,6 +417,7 @@ def get_tables():
             "message": "Failed to fetch tables!",
             "error": str(e)
         }
+
 
 @app.put("/api/v1/tables/{table_id}")
 def update_table(table_id: str, request: TableUpdate):
@@ -451,23 +447,11 @@ def update_table(table_id: str, request: TableUpdate):
 @app.delete("/api/v1/tables/{table_id}")
 def delete_table(table_id: str):
     try:
-        response = (
-            supabase
-            .table("tables")
-            .delete()
-            .eq("id", table_id)
-            .execute()
-        )
-
-        return {
-            "message": "Table deleted successfully!"
-        }
-
+        supabase.table("tables").delete().eq("id", table_id).execute()
+        return {"message": "Table deleted successfully!"}
     except Exception as e:
-        return {
-            "message": "Table deletion failed!",
-            "error": str(e)
-        }
+        return {"message": "Table deletion failed!", "error": str(e)}
+
 
 class OrderCreate(BaseModel):
     order_number: str
@@ -562,26 +546,15 @@ def update_order(order_id: str, request: OrderUpdate):
             "error": str(e)
         }
 
+
 @app.delete("/api/v1/orders/{order_id}")
 def delete_order(order_id: str):
     try:
-        response = (
-            supabase
-            .table("orders")
-            .delete()
-            .eq("id", order_id)
-            .execute()
-        )
-
-        return {
-            "message": "Order deleted successfully!"
-        }
-
+        supabase.table("orders").delete().eq("id", order_id).execute()
+        return {"message": "Order deleted successfully!"}
     except Exception as e:
-        return {
-            "message": "Order deletion failed!",
-            "error": str(e)
-        }
+        return {"message": "Order deletion failed!", "error": str(e)}
+
 
 class OrderItemCreate(BaseModel):
     order_id: str
@@ -676,23 +649,11 @@ def update_order_item(order_item_id: str, request: OrderItemUpdate):
 @app.delete("/api/v1/order-items/{order_item_id}")
 def delete_order_item(order_item_id: str):
     try:
-        response = (
-            supabase
-            .table("order_items")
-            .delete()
-            .eq("id", order_item_id)
-            .execute()
-        )
-
-        return {
-            "message": "Order item deleted successfully!"
-        }
-
+        supabase.table("order_items").delete().eq("id", order_item_id).execute()
+        return {"message": "Order item deleted successfully!"}
     except Exception as e:
-        return {
-            "message": "Order item deletion failed!",
-            "error": str(e)
-        }
+        return {"message": "Order item deletion failed!", "error": str(e)}
+
 
 class PaymentCreate(BaseModel):
     order_id: str
@@ -800,23 +761,10 @@ def update_payment(payment_id: str, request: PaymentUpdate):
 @app.delete("/api/v1/payments/{payment_id}")
 def delete_payment(payment_id: str):
     try:
-        response = (
-            supabase
-            .table("payments")
-            .delete()
-            .eq("id", payment_id)
-            .execute()
-        )
-
-        return {
-            "message": "Payment deleted successfully!"
-        }
-
+        supabase.table("payments").delete().eq("id", payment_id).execute()
+        return {"message": "Payment deleted successfully!"}
     except Exception as e:
-        return {
-            "message": "Payment deletion failed!",
-            "error": str(e)
-        }
+        return {"message": "Payment deletion failed!", "error": str(e)}
 
 
 @app.get("/api/v1/dashboard")
@@ -850,20 +798,20 @@ def dashboard():
             "error": str(e)
         }
 
+
 @app.post("/api/v1/auth/forgot-password")
 def forgot_password(request: ForgotPasswordRequest):
     try:
         email = request.email.strip().lower()
 
-        # Check whether the email belongs to a registered user
-        users = supabase.auth.admin.list_users(page=1, per_page=1000)
+        # Safely fetch registered users
+        users = get_all_supabase_users()
 
         user_exists = any(
             user.email and user.email.lower() == email
             for user in users
         )
 
-        # Don't reveal whether an email exists
         if not user_exists:
             return {
                 "message": "If this email is registered, an OTP has been sent."
@@ -872,13 +820,13 @@ def forgot_password(request: ForgotPasswordRequest):
         # Generate 6-digit OTP
         otp = f"{secrets.randbelow(1000000):06d}"
 
-        # Hash OTP before storing it
+        # Hash OTP before storing
         otp_hash = hashlib.sha256(otp.encode()).hexdigest()
 
-        # OTP expires in 10 minutes
+        # Expiry set to 10 minutes
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
 
-        # Invalidate previous unused OTPs for this email
+        # Invalidate previous unused OTPs
         supabase.table("password_reset_otps").update({
             "used": True
         }).eq("email", email).eq("used", False).execute()
@@ -892,10 +840,22 @@ def forgot_password(request: ForgotPasswordRequest):
             "used": False
         }).execute()
 
-        # Create email
+        # Robust fallbacks for Environment Variables
+        smtp_host = os.getenv("SMTP_HOST") or os.getenv("MAIL_SERVER") or "smtp.gmail.com"
+        smtp_port = int(os.getenv("SMTP_PORT") or os.getenv("MAIL_PORT") or "587")
+        smtp_user = os.getenv("SMTP_USERNAME") or os.getenv("MAIL_USERNAME") or os.getenv("MAIL_FROM")
+        smtp_pass = os.getenv("SMTP_PASSWORD") or os.getenv("MAIL_PASSWORD")
+
+        if not smtp_user or not smtp_pass:
+            return {
+                "message": "Password reset failed!",
+                "error": "SMTP_USERNAME or SMTP_PASSWORD environment variable is missing on server."
+            }
+
+        # Create Email
         msg = EmailMessage()
         msg["Subject"] = "GourmetOS Password Reset OTP"
-        msg["From"] = os.getenv("SMTP_USERNAME")
+        msg["From"] = smtp_user
         msg["To"] = email
 
         msg.set_content(
@@ -913,13 +873,10 @@ GourmetOS
 """
         )
 
-        # Send through Gmail SMTP
-        with smtplib.SMTP(os.getenv("SMTP_HOST"), int(os.getenv("SMTP_PORT", "587"))) as server:
+        # Send via SMTP with 10s Timeout
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
             server.starttls()
-            server.login(
-                os.getenv("SMTP_USERNAME"),
-                os.getenv("SMTP_PASSWORD")
-            )
+            server.login(smtp_user, smtp_pass)
             server.send_message(msg)
 
         return {
@@ -931,6 +888,8 @@ GourmetOS
             "message": "Password reset request failed!",
             "error": str(e)
         }
+
+
 class VerifyOTPRequest(BaseModel):
     email: str
     otp: str
@@ -944,7 +903,6 @@ def verify_otp(request: VerifyOTPRequest):
         email = request.email.strip().lower()
         otp = request.otp.strip()
 
-        # Get latest unused OTP
         result = (
             supabase.table("password_reset_otps")
             .select("*")
@@ -956,50 +914,34 @@ def verify_otp(request: VerifyOTPRequest):
         )
 
         if not result.data:
-            return {
-                "message": "Invalid or expired OTP."
-            }
+            return {"message": "Invalid or expired OTP."}
 
         otp_record = result.data[0]
 
-        # Check attempts
         if otp_record.get("attempts", 0) >= 5:
-            return {
-                "message": "Too many OTP attempts. Please request a new OTP."
-            }
+            return {"message": "Too many OTP attempts. Please request a new OTP."}
 
-        # Check expiry
         expires_at = datetime.fromisoformat(
             otp_record["expires_at"].replace("Z", "+00:00")
         )
 
         if datetime.now(timezone.utc) > expires_at:
-            return {
-                "message": "OTP has expired. Please request a new OTP."
-            }
+            return {"message": "OTP has expired. Please request a new OTP."}
 
-        # Hash entered OTP
         entered_hash = hashlib.sha256(otp.encode()).hexdigest()
 
-        # Check OTP
         if entered_hash != otp_record["otp_hash"]:
             supabase.table("password_reset_otps").update({
                 "attempts": otp_record.get("attempts", 0) + 1
             }).eq("id", otp_record["id"]).execute()
 
-            return {
-                "message": "Invalid OTP."
-            }
+            return {"message": "Invalid OTP."}
 
-        return {
-            "message": "OTP verified successfully!"
-        }
+        return {"message": "OTP verified successfully!"}
 
     except Exception as e:
-        return {
-            "message": "OTP verification failed!",
-            "error": str(e)
-        }
+        return {"message": "OTP verification failed!", "error": str(e)}
+
 
 class ResetPasswordRequest(BaseModel):
     email: str
@@ -1017,16 +959,11 @@ def reset_password(request: ResetPasswordRequest):
         otp = request.otp.strip()
 
         if request.new_password != request.confirm_password:
-            return {
-                "message": "Passwords do not match."
-            }
+            return {"message": "Passwords do not match."}
 
         if len(request.new_password) < 6:
-            return {
-                "message": "Password must be at least 6 characters long."
-            }
+            return {"message": "Password must be at least 6 characters long."}
 
-        # Get latest unused OTP
         result = (
             supabase.table("password_reset_otps")
             .select("*")
@@ -1038,65 +975,42 @@ def reset_password(request: ResetPasswordRequest):
         )
 
         if not result.data:
-            return {
-                "message": "Invalid or expired OTP."
-            }
+            return {"message": "Invalid or expired OTP."}
 
         otp_record = result.data[0]
 
-        # Check expiry
         expires_at = datetime.fromisoformat(
             otp_record["expires_at"].replace("Z", "+00:00")
         )
 
         if datetime.now(timezone.utc) > expires_at:
-            return {
-                "message": "OTP has expired. Please request a new OTP."
-            }
+            return {"message": "OTP has expired. Please request a new OTP."}
 
-        # Verify OTP
         entered_hash = hashlib.sha256(otp.encode()).hexdigest()
 
         if entered_hash != otp_record["otp_hash"]:
-            return {
-                "message": "Invalid OTP."
-            }
+            return {"message": "Invalid OTP."}
 
-        # Find user
-        users = supabase.auth.admin.list_users(page=1, per_page=1000)
+        users = get_all_supabase_users()
 
         user = next(
-            (
-                user for user in users
-                if user.email and user.email.lower() == email
-            ),
+            (user for user in users if user.email and user.email.lower() == email),
             None
         )
 
         if not user:
-            return {
-                "message": "User not found."
-            }
+            return {"message": "User not found."}
 
-        # Update Supabase password
         supabase.auth.admin.update_user_by_id(
             user.id,
-            {
-                "password": request.new_password
-            }
+            {"password": request.new_password}
         )
 
-        # Mark OTP as used
         supabase.table("password_reset_otps").update({
             "used": True
         }).eq("id", otp_record["id"]).execute()
 
-        return {
-            "message": "Password reset successfully!"
-        }
+        return {"message": "Password reset successfully!"}
 
     except Exception as e:
-        return {
-            "message": "Password reset failed!",
-            "error": str(e)
-        }
+        return {"message": "Password reset failed!", "error": str(e)}
