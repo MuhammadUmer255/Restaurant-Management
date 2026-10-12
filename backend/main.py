@@ -1,13 +1,10 @@
 import os
 import secrets
 import hashlib
-import smtplib
-from email.message import EmailMessage
+import requests
 from datetime import datetime, timedelta, timezone
-import socket
-
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
 from pydantic import BaseModel, EmailStr
@@ -41,6 +38,37 @@ def get_all_supabase_users():
     elif isinstance(res, list):
         return res
     return []
+
+
+def send_resend_email_task(email: str, otp: str, api_key: str):
+    """Background task to send OTP via Resend HTTP API"""
+    try:
+        url = "https://api.resend.com/emails"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "from": "GourmetOS <onboarding@resend.dev>",
+            "to": [email],
+            "subject": "GourmetOS Password Reset OTP",
+            "html": f"""
+            <div style="font-family: Arial, sans-serif; padding: 20px;">
+                <h2>GourmetOS Password Reset</h2>
+                <p>Hello,</p>
+                <p>Your OTP for password reset is:</p>
+                <h1 style="color: #4F46E5; letter-spacing: 2px;">{otp}</h1>
+                <p>This OTP is valid for 10 minutes.</p>
+                <p>If you did not request this, please ignore this email.</p>
+            </div>
+            """,
+        }
+
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
+        print(f"Resend API Response Status: {response.status_code}, Body: {response.text}")
+
+    except Exception as e:
+        print(f"Error sending email via Resend: {e}")
 
 
 @app.get("/")
@@ -800,18 +828,8 @@ def dashboard():
         }
 
 
-    except Exception as e:
-        return {
-            "message": "Password reset request failed!",
-            "error": str(e)
-        }
-
-
-class VerifyOTPRequest(BaseModel):
-    email: str
-    otp: str
 @app.post("/api/v1/auth/forgot-password")
-def forgot_password(request: ForgotPasswordRequest):
+def forgot_password(request: ForgotPasswordRequest, background_tasks: BackgroundTasks):
     try:
         email = request.email.strip().lower()
 
@@ -851,51 +869,16 @@ def forgot_password(request: ForgotPasswordRequest):
             "used": False
         }).execute()
 
-        # Fetch Environment Variables
-        smtp_user = os.getenv("SMTP_USERNAME") or os.getenv("MAIL_USERNAME")
-        smtp_pass = (os.getenv("SMTP_PASSWORD") or os.getenv("MAIL_PASSWORD") or "").replace(" ", "")
+        # Send via Resend HTTP API
+        resend_key = os.getenv("RESEND_API_KEY")
 
-        if not smtp_user or not smtp_pass:
+        if resend_key:
+            background_tasks.add_task(send_resend_email_task, email, otp, resend_key)
+        else:
             return {
                 "message": "Password reset failed!",
-                "error": "SMTP_USERNAME or SMTP_PASSWORD environment variable is missing on server."
+                "error": "RESEND_API_KEY environment variable is missing on server."
             }
-
-        # Create Email
-        msg = EmailMessage()
-        msg["Subject"] = "GourmetOS Password Reset OTP"
-        msg["From"] = smtp_user
-        msg["To"] = email
-
-        msg.set_content(
-            f"""Hello,
-
-Your GourmetOS password reset OTP is:
-
-{otp}
-
-This OTP will expire in 10 minutes.
-
-If you did not request a password reset, you can safely ignore this email.
-
-GourmetOS
-"""
-        )
-
-        # Force IPv4 to bypass Render 'Network is unreachable' error
-        orig_getaddrinfo = socket.getaddrinfo
-        def getaddrinfo_ipv4(*args, **kwargs):
-            res = orig_getaddrinfo(*args, **kwargs)
-            return [r for r in res if r[0] == socket.AF_INET]
-
-        try:
-            socket.getaddrinfo = getaddrinfo_ipv4
-            with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
-                server.starttls()
-                server.login(smtp_user, smtp_pass)
-                server.send_message(msg)
-        finally:
-            socket.getaddrinfo = orig_getaddrinfo  # Reset back
 
         return {
             "message": "If this email is registered, an OTP has been sent."
@@ -906,6 +889,12 @@ GourmetOS
             "message": "Password reset request failed!",
             "error": str(e)
         }
+
+
+class VerifyOTPRequest(BaseModel):
+    email: str
+    otp: str
+
 
 @app.post("/verify-otp")
 @app.post("/api/v1/verify-otp")
