@@ -4,6 +4,7 @@ import hashlib
 import smtplib
 from email.message import EmailMessage
 from datetime import datetime, timedelta, timezone
+import socket
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -799,6 +800,16 @@ def dashboard():
         }
 
 
+    except Exception as e:
+        return {
+            "message": "Password reset request failed!",
+            "error": str(e)
+        }
+
+
+class VerifyOTPRequest(BaseModel):
+    email: str
+    otp: str
 @app.post("/api/v1/auth/forgot-password")
 def forgot_password(request: ForgotPasswordRequest):
     try:
@@ -840,11 +851,9 @@ def forgot_password(request: ForgotPasswordRequest):
             "used": False
         }).execute()
 
-        # Robust fallbacks for Environment Variables
-        smtp_host = os.getenv("SMTP_HOST") or os.getenv("MAIL_SERVER") or "smtp.gmail.com"
-        smtp_port = int(os.getenv("SMTP_PORT") or os.getenv("MAIL_PORT") or "587")
-        smtp_user = os.getenv("SMTP_USERNAME") or os.getenv("MAIL_USERNAME") or os.getenv("MAIL_FROM")
-        smtp_pass = os.getenv("SMTP_PASSWORD") or os.getenv("MAIL_PASSWORD")
+        # Fetch Environment Variables
+        smtp_user = os.getenv("SMTP_USERNAME") or os.getenv("MAIL_USERNAME")
+        smtp_pass = (os.getenv("SMTP_PASSWORD") or os.getenv("MAIL_PASSWORD") or "").replace(" ", "")
 
         if not smtp_user or not smtp_pass:
             return {
@@ -873,17 +882,20 @@ GourmetOS
 """
         )
 
-        # Send via SMTP with 10s Timeout
-       # Send Email (Auto-detect Port 465 vs 587)
-        if smtp_port == 465:
-            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10) as server:
-                server.login(smtp_user, smtp_pass)
-                server.send_message(msg)
-        else:
-            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+        # Force IPv4 to bypass Render 'Network is unreachable' error
+        orig_getaddrinfo = socket.getaddrinfo
+        def getaddrinfo_ipv4(*args, **kwargs):
+            res = orig_getaddrinfo(*args, **kwargs)
+            return [r for r in res if r[0] == socket.AF_INET]
+
+        try:
+            socket.getaddrinfo = getaddrinfo_ipv4
+            with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
                 server.starttls()
                 server.login(smtp_user, smtp_pass)
                 server.send_message(msg)
+        finally:
+            socket.getaddrinfo = orig_getaddrinfo  # Reset back
 
         return {
             "message": "If this email is registered, an OTP has been sent."
@@ -894,12 +906,6 @@ GourmetOS
             "message": "Password reset request failed!",
             "error": str(e)
         }
-
-
-class VerifyOTPRequest(BaseModel):
-    email: str
-    otp: str
-
 
 @app.post("/verify-otp")
 @app.post("/api/v1/verify-otp")
